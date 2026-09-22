@@ -40,7 +40,9 @@ def main() -> int:
     report["checks"]["status"] = run(["hermes", "-p", args.profile, "status"])
     report["checks"]["cron_status"] = run(["hermes", "-p", args.profile, "cron", "status"])
     report["checks"]["cron_list"] = run(["hermes", "-p", args.profile, "cron", "list"])
-    report["checks"]["plugins"] = run(["hermes", "-p", args.profile, "plugins", "list"])
+    report["checks"]["plugins"] = run(
+        ["hermes", "-p", args.profile, "plugins", "list", "--enabled", "--plain"]
+    )
     report["checks"]["runtime"] = run([
         sys.executable,
         str(root / "runtime" / "pretorius_runtime.py"),
@@ -58,13 +60,24 @@ def main() -> int:
     report["expected_routines"] = {name: name.lower() in cron_text.lower() for name in expected}
 
     plugin_text = report["checks"]["plugins"]["stdout"] + "\n" + report["checks"]["plugins"]["stderr"]
-    report["pretorius_state_plugin_present"] = "pretorius-state" in plugin_text.lower()
+    report["pretorius_state_plugin_enabled"] = "pretorius-state" in plugin_text.lower()
+    report["checks"]["research"] = run([
+        sys.executable,
+        str(root / "runtime" / "research_library.py"),
+        "recent",
+        "--limit",
+        "1",
+    ])
+    report["learned_skills_dir"] = str(root / "local" / "learned_skills")
+    report["learned_skills_dir_exists"] = (root / "local" / "learned_skills").is_dir()
 
     hard_ok = (
         report["checks"]["doctor"]["returncode"] == 0
         and report["checks"]["runtime"]["returncode"] == 0
         and all(report["expected_routines"].values())
-        and report["pretorius_state_plugin_present"]
+        and report["pretorius_state_plugin_enabled"]
+        and report["checks"]["research"]["returncode"] == 0
+        and report["learned_skills_dir_exists"]
     )
     scheduler_text = (
         report["checks"]["cron_status"]["stdout"] + "\n" + report["checks"]["cron_status"]["stderr"]

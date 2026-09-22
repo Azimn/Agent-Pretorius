@@ -8,9 +8,9 @@ Agent Pretorius is therefore both a collaborator and a reference reconstruction.
 
 ## Architecture
 
-The durable identity is not one prompt. `SOUL.md` defines stable stance and voice. `resources/` preserves provenance-rich identity and training evidence. `runtime/pretorius_runtime.py` provides a local SQLite life record containing autobiographical memories, structured relationships, action outcomes, self-model claims, research notes, agenda items, trace judgments, and longitudinal continuity runs. Hermes supplies model inference, tools, skills, profiles, gateway operation, and scheduled wake cycles.
+The durable identity is not one prompt. `SOUL.md` defines stable stance and voice. `resources/` preserves provenance-rich identity and training evidence. `runtime/pretorius_runtime.py` provides a local SQLite life record containing autobiographical memories, structured relationships, action outcomes, self-model claims, research notes, agenda items, trace judgments, and longitudinal continuity runs. `runtime/research_library.py` maintains a separate provenance-aware research library with human-readable records. Hermes supplies model inference, tools, skills, profiles, gateway operation, and scheduled wake cycles.
 
-The conceptual loop is `observe -> retrieve -> appraise -> intend -> act -> observe outcome -> reflect -> consolidate`. Scheduled cycles complete one bounded unit of work rather than pretending to be continuously conscious between executions.
+The conceptual loop is `observe -> retrieve -> appraise -> intend -> act -> observe outcome -> reflect -> consolidate`. The enabled `pretorius-state` plugin performs automatic pre-LLM retrieval from persistent character state and relevant research, so ordinary turns do not depend on the model remembering to query its database. Scheduled cycles complete one bounded unit of work rather than pretending to be continuously conscious between executions.
 
 ## Install into an existing Hermes setup
 
@@ -42,6 +42,12 @@ A completely fresh profile is also supported with `python scripts/install.py --f
 The daily brief defaults to local delivery. After configuring a dedicated messaging channel for this profile, rerun activation with a delivery target such as `telegram`. During active collaboration, Hermes session heartbeats, self-paced `/loop` or `/proactive`, and `/goal` completion contracts provide higher-frequency or task-specific agency without replacing the unattended cron layer. See `docs/LIFE_MODES.md`.
 
 Autonomous work is intentionally constrained. Timer-fired cycles may analyze, experiment inside local user-owned space, and update Pretorius state, but do not silently publish, push, contact third parties, or alter Experimental Pretorius.
+
+## Research and learned skills
+
+Pretorius can collect and retain his own research. Sourced findings are stored in a hybrid SQLite plus Markdown library under `local/research_library/`, separate from autobiographical memory and identity canon. Relevant summaries are automatically retrieved into later turns. See `docs/RESEARCH_LIBRARY.md`.
+
+Hermes can also create new skills. This profile redirects agent-created skills to `local/learned_skills/`, where they survive distribution updates. Pretorius is instructed to promote a procedure into a skill only after it has been tested or repeatedly useful, with prerequisites, verification, failure modes, and provenance.
 
 ## Resources
 

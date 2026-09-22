@@ -12,9 +12,11 @@ REQUIRED = [
     "AGENTS.md",
     "config.yaml",
     "runtime/pretorius_runtime.py",
-    "skills/pretorius-life/SKILL.md",
-    "plugins/pretorius-state/plugin.yaml",
+    "runtime/research_library.py",
     "plugins/pretorius-state/__init__.py",
+    "plugins/pretorius-state/plugin.yaml",
+    "skills/pretorius-life/SKILL.md",
+    "skills/pretorius-learning/SKILL.md",
     "skills/pretorius-research/SKILL.md",
     "skills/pretorius-trace-evaluator/SKILL.md",
     "resources/seed_agenda.json",
@@ -45,7 +47,25 @@ def main() -> int:
         )
         checks["runtime_init_ok"] = proc.returncode == 0
         checks["runtime_init_output"] = (proc.stdout or proc.stderr).strip()
-    ok = checks["python_ok"] and not missing and checks.get("runtime_init_ok", False)
+    research = root / "runtime" / "research_library.py"
+    if research.exists():
+        proc = subprocess.run(
+            [
+                sys.executable, str(research),
+                "--db", str(root / "local" / "readiness_research.db"),
+                "--records-dir", str(root / "local" / "readiness_research_records"),
+                "init",
+            ],
+            text=True, capture_output=True,
+        )
+        checks["research_init_ok"] = proc.returncode == 0
+        checks["research_init_output"] = (proc.stdout or proc.stderr).strip()
+    ok = (
+        checks["python_ok"]
+        and not missing
+        and checks.get("runtime_init_ok", False)
+        and checks.get("research_init_ok", False)
+    )
     checks["ready"] = bool(ok)
     print(json.dumps(checks, indent=2))
     return 0 if ok else 1
