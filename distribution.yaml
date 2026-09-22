@@ -1,0 +1,20 @@
+name: agent-pretorius
+version: 0.1.0
+description: "Persistent Hermes character, autonomous research collaborator, and blinded reference evaluator for the Pretorius program"
+hermes_requires: ">=0.21.4"
+author: "Azimn"
+license: "MIT"
+distribution_owned:
+  - SOUL.md
+  - AGENTS.md
+  - profile.yaml
+  - config.yaml
+  - skills/
+  - cron/
+  - runtime/
+  - scripts/
+  - resources/
+  - docs/
+  - tests/
+  - README.md
+  - distribution.yaml
