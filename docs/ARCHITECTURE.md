@@ -71,3 +71,10 @@ The model is therefore an implementation dependency. Pretorius is the continuity
 The comprehensive agent is not merely an evaluator. It should participate in research as a persistent colleague. It can disagree, propose alternatives, run bounded analyses, critique interpretations, and remember why previous decisions were made.
 
 The project should avoid scripting agreement. A collaborator that only validates the researcher's expectations has little scientific value.
+
+
+## Automatic persistent-state recall
+
+The profile ships a read-only Hermes plugin named `pretorius-state`. Its `pre_llm_call` hook reads a compact projection of the local SQLite character record and injects it into each turn. This keeps open concerns, self-model hypotheses, relationship history, recent durable memories, research notes, and consequential action outcomes cognitively available without requiring the model to remember to call a retrieval command first.
+
+The plugin never writes state. Durable mutations remain explicit through the runtime CLI. During blinded trace evaluation it suppresses autobiographical research recall and prior action outcomes, leaving stable identity, self-model, and relationship evidence available while reducing experimental contamination.

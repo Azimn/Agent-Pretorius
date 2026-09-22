@@ -93,6 +93,10 @@ def ensure_config(profile: str, root: Path) -> list[str]:
         if proc.returncode != 0:
             raise RuntimeError(f"Failed to set {key}: {proc.stderr or proc.stdout}")
         changes.append(key)
+    plugin = run(hermes_prefix(profile) + ["plugins", "enable", "pretorius-state"], check=False)
+    if plugin.returncode != 0:
+        raise RuntimeError(f"Failed to enable pretorius-state plugin: {plugin.stderr or plugin.stdout}")
+    changes.append("plugins.enabled:pretorius-state")
     return changes
 
 def initialize_runtime(root: Path) -> dict:

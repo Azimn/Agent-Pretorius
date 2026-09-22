@@ -1,0 +1,6 @@
+name: pretorius-state
+version: "0.1.0"
+description: "Inject compact Agent Pretorius persistent state into each Hermes turn."
+author: Azimn
+provides_hooks:
+  - pre_llm_call
