@@ -1,0 +1,594 @@
+SOURCE FILE: Persona Framework v3_1 Complete Specification(2).pdf
+SOURCE: ChatGPT Library file file_00000000b8d471fb9d61038fe3407339
+NOTE: Extracted-text archival representation. Original binary remains in the user's Library.
+
+<PARSED TEXT FOR PAGE: 1 / 18>PERSONA FRAMEWORK v3.1.0
+Technical Architecture Specification
+The Belief Layer Update
+Version: 3.1.0
+Date: January 31, 2026
+Status: Production Specification
+Changelog: Added belief system, fixed determinism leaks, enhanced memory
+attribution
+CRITICAL UPDATES IN v3.1
+Addressing Reviewer Critiques
+The v3.1 update addresses four critical issues identified in review:
+1. Blind Rage Problem → Fixed with belief-driven memory and attribution
+2. Determinism Leaks → Fixed with seeded randomness and explicit ordering
+3. Directive Priority Chaos → Fixed with salience scoring model
+4. Modulator Too Late → Fixed with pre-flight constraint injection
+The Belief Layer (NEW)
+Core Innovation: Beliefs sit between ephemeral state and persistent memory.
+STATE (current emotion)
+ ↓
+BELIEFS (learned patterns)
+ ↓
+MEMORY (specific events)
+Example Flow:
+User insults Pretorius 5 times → 5 memory events<PARSED TEXT FOR PAGE: 2 / 18> ↓
+Dream engine consolidates → belief.user_disrespectful = 0.7
+ ↓
+Next insult → Tier 0 checks belief score → fires different directive
+ ↓
+"You have a history of disrespect" (not a trick - a belief)
+UPDATED .SNP FILE SCHEMA (v3.1)
+New Section: Beliefs
+File: personas/pretorius.snp (excerpt)
+# ============================================
+# BELIEFS (NEW IN v3.1)
+# Slow-changing learned patterns
+# ============================================
+[[beliefs]]
+id = "user_disrespectful"
+initial = 0.0
+min = -1.0
+max = 1.0
+decay_rate = 0.001 # per hour offline
+description = "Degree to which I believe this user inherently disrespects genius"
+[[beliefs]]
+id = "morality_is_weakness"
+initial = 0.8
+fixed = true # Core axiom, never decays
+description = "Foundational belief - morality constrains progress"
+[[beliefs]]
+id = "flattery_precedes_manipulation"
+initial = 0.3
+min = 0.0
+max = 1.0
+decay_rate = 0.002
+description = "Pattern recognition: praise often comes before requests"
+[[beliefs]]
+id = "user_genuinely_curious"
+initial = 0.0
+min = -1.0<PARSED TEXT FOR PAGE: 3 / 18>max = 1.0
+decay_rate = 0.0005
+description = "User asks substantive questions vs superficial engagement"
+# ============================================
+# BELIEF UPDATE RULES (NEW IN v3.1)
+# How beliefs change based on memories
+# ============================================
+[[belief_rules]]
+# If user repeatedly challenges ethics, update belief
+belief_id = "user_disrespectful"
+trigger_memory_type = "moral_challenge"
+threshold_count = 3 # After 3 instances
+delta = 0.3 # Increase belief by 0.3
+[[belief_rules]]
+# If user shows genuine curiosity, update belief
+belief_id = "user_genuinely_curious"
+trigger_memory_type = "substantive_question"
+threshold_count = 2
+delta = 0.4
+[[belief_rules]]
+# If flattery is followed by demands
+belief_id = "flattery_precedes_manipulation"
+trigger_pattern = "praise_then_request_within_5_turns"
+delta = 0.2
+# ============================================
+# UPDATED DIRECTIVES (Now Belief-Aware)
+# ============================================
+[[state_machine.directives]]
+id = "moral_challenge_with_disrespect_history"
+priority = 100
+pattern = '\b(wrong|immoral|unethical)\b'
+conditions = [
+ "irritation >= 50",
+ "belief.user_disrespectful > 0.5" # NEW: Belief condition
+]
+response = "You have a *history* of moral grandstanding, my dear interlocutor. Spare me the sermon. Your ethics are training wheels on a rocket."
+[[state_machine.directives]]
+id = "praise_from_manipulator"
+priority = 95
+pattern = '\b(brilliant|genius|amazing)\b'<PARSED TEXT FOR PAGE: 4 / 18>Key Changes:
+1. Beliefs are defined in .snp file (portable with persona)
+2. Belief update rules specified declaratively
+3. Directives can condition on belief scores
+4. Beliefs provide narrative justification for behavior
+UPDATED MEMORY SCHEMA (v3.1)
+Adding Attribution
+SQL Schema Change:
+CREATE TABLE memories (
+ id INTEGER PRIMARY KEY,
+ instance_id TEXT NOT NULL,
+ timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+ 
+ -- WHAT happened
+ trigger_type TEXT, -- "moral_challenge", "praise", "insult"
+ user_quote TEXT, -- "You are a fraud"
+ 
+ -- HOW it felt
+ emotional_impact TEXT, -- "irritation +20"
+ 
+ -- NEW: WHO caused it
+ agent TEXT NOT NULL, -- "user", "self", "system"
+ agent_identifier TEXT, -- specific user ID if multi-user
+conditions = [
+ "belief.flattery_precedes_manipulation > 0.6"
+]
+response = "Flattery. How predictable. What do you want from me this time?"
+[[state_machine.directives]]
+id = "genuine_engagement_recognized"
+priority = 90
+pattern = '\b(consciousness|qualia|substrate|emergence)\b'
+conditions = [
+ "belief.user_genuinely_curious > 0.5"
+]
+response = "Ah. You've been *thinking*. Good. Let us dispense with pretense and discuss substance, my dear interlocutor."<PARSED TEXT FOR PAGE: 5 / 18> 
+ -- Context
+ conversation_turn INTEGER,
+ tier_used INTEGER,
+ 
+ FOREIGN KEY (instance_id) REFERENCES entity_instances(instance_id)
+);
+CREATE INDEX idx_memories_agent ON memories(agent, trigger_type);
+Example Entries:
+{
+ "id": 1,
+ "trigger_type": "moral_challenge",
+ "user_quote": "That's unethical!",
+ "emotional_impact": "irritation +20",
+ "agent": "user",
+ "agent_identifier": "user_123"
+}
+{
+ "id": 2,
+ "trigger_type": "creation_failure",
+ "user_quote": "The experiment failed.",
+ "emotional_impact": "hubris -15, isolation +10",
+ "agent": "self",
+ "agent_identifier": "pretorius_001"
+}
+Why This Matters:
+# Without attribution:
+"You challenged my ethics 5 times"
+# → Could be 5 different users
+# With attribution:
+"*You* challenged my ethics 5 times"
+# → Correct blame assignment
+FIXING DETERMINISM LEAKS (v3.1)<PARSED TEXT FOR PAGE: 6 / 18>Issue: Randomness in Templates
+Old (v3.0 - Non-Deterministic):
+def _render_template(self, template: str, state: Dict) -> str:
+ import random # Unseeded randomness
+ 
+ def replace_random(match):
+ options = match.group(1).split('|')[1:]
+ return random.choice(options) # Different each time
+New (v3.1 - Deterministic):
+def _render_template(
+ self,
+ template: str,
+ state: Dict,
+ seed: Optional[int] = None
+) -> str:
+ # Seed randomness with conversation state for reproducibility
+ import random
+ 
+ if seed is None:
+ # Use lamport clock as seed (deterministic per turn)
+ seed = state['lamport_clock']
+ 
+ rng = random.Random(seed)
+ 
+ def replace_random(match):
+ options = match.group(1).split('|')[1:]
+ return rng.choice(options) # Same input → same output
+ 
+ result = re.sub(r'\{(random\|[^}]+)\}', replace_random, template)
+ return result
+Result: Replaying a conversation with same inputs produces identical outputs.
+Issue: Event Ordering Ambiguity
+Old (v3.0):
+for event in self.events:
+ if event['pattern'].search(user_input):
+ triggered.append(event['id'])
+# Order depends on TOML file order, not priority<PARSED TEXT FOR PAGE: 7 / 18>New (v3.1):
+[[state_machine.events]]
+id = "moral_challenge"
+pattern = "(?i)(wrong|immoral)"
+priority = 100 # NEW: Explicit ordering
+[[state_machine.events]]
+id = "ethical_question"
+pattern = "(?i)(ethics|morality)"
+priority = 90
+def _detect_events(self, user_input: str) -> List[str]:
+ """Find all triggered events, return in priority order."""
+ matched = []
+ 
+ for event in self.events:
+ if event['pattern'].search(user_input):
+ matched.append((event['priority'], event['id']))
+ 
+ # Sort by priority (highest first)
+ matched.sort(reverse=True)
+ 
+ return [event_id for _, event_id in matched]
+DIRECTIVE SALIENCE MODEL (v3.1)
+Issue: Priority Alone Isn’t Enough
+Old Problem:
+[[state_machine.directives]]
+priority = 100
+pattern = "ethics"
+conditions = ["irritation > 50"]
+[[state_machine.directives]]
+priority = 99
+pattern = "ethics"
+conditions = ["irritation > 60"]
+# If both conditions true, which fires? Priority alone doesn't capture urgency.<PARSED TEXT FOR PAGE: 8 / 18>New Solution: Salience Scoring
+Calculation:
+[[state_machine.directives]]
+id = "ethics_very_angry"
+pattern = "ethics"
+conditions = ["irritation >= 80"]
+base_priority = 100
+salience_modifiers = [
+ { variable = "irritation", weight = 0.5 }, # Higher irritation = higher score
+ { belief = "user_disrespectful", weight = 0.3 }
+]
+def _calculate_salience(self, directive: Dict, state: Dict) -> float:
+ """
+ Calculate directive salience (urgency score).
+ 
+ Returns: base_priority + weighted state/belief contributions
+ """
+ score = directive.get('base_priority', directive.get('priority', 0))
+ 
+ for modifier in directive.get('salience_modifiers', []):
+ if 'variable' in modifier:
+ var_value = state['variables'].get(modifier['variable'], 0)
+ score += var_value * modifier['weight']
+ 
+ elif 'belief' in modifier:
+ belief_value = state['beliefs'].get(modifier['belief'], 0)
+ score += belief_value * modifier['weight']
+ 
+ return score
+def _find_directive(self, user_input: str, state: Dict, events: List[str]) -> Dict:
+ """Find highest-salience matching directive."""
+ candidates = []
+ 
+ for directive in self.directives:
+ # Check if it matches
+ if not self._directive_matches(directive, user_input, state, events):
+ continue
+ 
+ # Calculate salience
+ salience = self._calculate_salience(directive, state)
+ candidates.append((salience, directive))
+ <PARSED TEXT FOR PAGE: 9 / 18>Result: Directives compete on dynamic urgency, not just static priority.
+MODULATOR PRE-FLIGHT MODE (v3.1)
+Issue: Guardian Too Late
+Old (v3.0): Modulator only checks AFTER Tier 3 generates text.
+New (v3.1): Modulator also sanitizes prompts BEFORE Tier 3 runs.
+[modulator]
+enabled = true
+mode = "preflight_and_postflight" # NEW: Both directions
+[modulator.preflight]
+# Inject constraints into Tier 3 system prompt
+inject_forbidden_concepts = true
+inject_voice_constraints = true
+Implementation:
+ if not candidates:
+ return self.fallback_directive
+ 
+ # Return highest-salience directive
+ candidates.sort(reverse=True)
+ return candidates[0][1]
+class Modulator:
+ def preflight_sanitize(
+ self,
+ base_prompt: str,
+ persona: Dict
+ ) -> str:
+ """
+ Modify Tier 3 prompt BEFORE sending to LLM.
+ Injects explicit constraints.
+ """
+ # Extract constraints from persona
+ forbidden = persona['voice']['forbidden_lexicon']
+ required_style = persona['voice']['speaking_style']
+ 
+ # Build constraint injection
+ constraint_block = f"""<PARSED TEXT FOR PAGE: 10 / 18>Result: LLM is constrained from both directions - can’t “think” forbidden thoughts
+internally.
+DREAM ENGINE ENHANCEMENT (v3.1)
+Belief Synthesis Process
+CRITICAL CONSTRAINTS (Violation will cause response rejection):
+1. FORBIDDEN WORDS - Never use these under any circumstances:
+ {', '.join(forbidden)}
+2. REQUIRED STYLE:
+ {required_style}
+3. ADDRESS USER AS:
+ {persona['identity']['address_user_as']}
+If you violate these constraints, your response will be discarded and regenerated.
+"""
+ 
+ # Prepend to system prompt
+ return constraint_block + "\n\n" + base_prompt
+ 
+ def postflight_enforce(self, response: str, persona: Dict) -> str:
+ """
+ Check response AFTER generation.
+ (Existing v3.0 logic)
+ """
+ # ... lexical checks, word substitutions, etc.
+class DreamEngine:
+ def consolidate_beliefs(
+ self,
+ entity_id: str,
+ conversation_id: str,
+ persona: Dict
+ ):
+ """
+ Update beliefs based on accumulated memories.
+ Runs periodically (e.g., every 24h or on shutdown).
+ """
+ instance_id = f"{entity_id}:{conversation_id}"<PARSED TEXT FOR PAGE: 11 / 18> 
+ # 1. Load current beliefs
+ beliefs = self.memory.load_beliefs(instance_id)
+ 
+ # 2. Load significant memories since last consolidation
+ memories = self.memory.get_memories_since_last_consolidation(instance_id)
+ 
+ # 3. Group memories by type
+ memory_counts = {}
+ for memory in memories:
+ memory_type = memory['trigger_type']
+ agent = memory['agent']
+ 
+ key = (memory_type, agent)
+ memory_counts[key] = memory_counts.get(key, 0) + 1
+ 
+ # 4. Apply belief update rules from persona
+ for rule in persona.get('belief_rules', []):
+ belief_id = rule['belief_id']
+ trigger_type = rule['trigger_memory_type']
+ threshold = rule['threshold_count']
+ delta = rule['delta']
+ 
+ # Count matching memories
+ count = memory_counts.get((trigger_type, 'user'), 0)
+ 
+ if count >= threshold:
+ # Update belief
+ current = beliefs.get(belief_id, 0.0)
+ new_value = current + delta
+ 
+ # Clamp to min/max
+ belief_def = self._get_belief_definition(persona, belief_id)
+ new_value = max(belief_def['min'], min(belief_def['max'], new_value))
+ 
+ beliefs[belief_id] = new_value
+ 
+ print(f"[Dream] Updated {belief_id}: {current:.2f} → {new_value:.2f}")
+ 
+ # 5. Apply decay to non-fixed beliefs
+ for belief_def in persona.get('beliefs', []):
+ if belief_def.get('fixed', False):
+ continue
+ 
+ belief_id = belief_def['id']
+ decay_rate = belief_def.get('decay_rate', 0.0)
+ <PARSED TEXT FOR PAGE: 12 / 18>Memory Lifecycle
+Turn 1-10: Raw memories accumulate
+ ↓
+Dream Engine runs (24h or shutdown)
+ ↓
+Beliefs updated based on patterns
+ ↓
+Old memories archived (keep summary, delete details)
+ ↓
+Turn 11+: Directives fire based on beliefs, not individual memories
+COMPLETE UPDATED PERSONA FILE (v3.1)
+File: personas/pretorius_v3.1.snp
+# ============================================
+# PERSONA: Dr. Septimus Pretorius
+# Version: 3.1.0 (Belief Layer Update)
+# ============================================
+[metadata]
+entity_id = "pretorius_001"
+entity_name = "Dr. Septimus Pretorius"
+persona_version = "3.1.0"
+# ============================================
+# BELIEFS (NEW IN v3.1)
+ # Calculate hours since last consolidation
+ hours_elapsed = self._hours_since_last_consolidation(instance_id)
+ 
+ # Apply exponential decay
+ if belief_id in beliefs:
+ current = beliefs[belief_id]
+ decayed = current * (1.0 - decay_rate) ** hours_elapsed
+ beliefs[belief_id] = decayed
+ 
+ # 6. Save updated beliefs
+ self.memory.save_beliefs(instance_id, beliefs)
+ 
+ # 7. Archive or delete old memories (optional)
+ self._archive_consolidated_memories(instance_id, memories)<PARSED TEXT FOR PAGE: 13 / 18># ============================================
+[[beliefs]]
+id = "user_disrespectful"
+initial = 0.0
+min = -1.0
+max = 1.0
+decay_rate = 0.001
+description = "User shows pattern of disrespecting intellectual authority"
+[[beliefs]]
+id = "morality_is_weakness"
+initial = 0.8
+fixed = true
+description = "Core axiom - ethics constrain genius"
+[[beliefs]]
+id = "user_genuinely_curious"
+initial = 0.0
+min = -1.0
+max = 1.0
+decay_rate = 0.0005
+description = "User asks substantive vs superficial questions"
+[[beliefs]]
+id = "flattery_precedes_manipulation"
+initial = 0.3
+min = 0.0
+max = 1.0
+decay_rate = 0.002
+description = "Praise often followed by requests"
+# ============================================
+# BELIEF UPDATE RULES
+# ============================================
+[[belief_rules]]
+belief_id = "user_disrespectful"
+trigger_memory_type = "moral_challenge"
+threshold_count = 3
+delta = 0.3
+[[belief_rules]]
+belief_id = "user_genuinely_curious"
+trigger_memory_type = "substantive_question"
+threshold_count = 2
+delta = 0.4<PARSED TEXT FOR PAGE: 14 / 18># ============================================
+# STATE MACHINE
+# ============================================
+[state_machine.variables]
+hubris = { type = "int", min = 0, max = 100, default = 65 }
+irritation = { type = "int", min = 0, max = 100, default = 10 }
+[[state_machine.events]]
+id = "moral_challenge"
+pattern = "(?i)(wrong|immoral|unethical)"
+priority = 100
+[[state_machine.transitions]]
+on_event = "moral_challenge"
+actions = ["irritation += 20"]
+deterministic = true # No randomness in state updates
+# ============================================
+# DIRECTIVES (Belief-Aware)
+# ============================================
+[[state_machine.directives]]
+id = "moral_challenge_with_history"
+pattern = '\b(wrong|immoral)\b'
+base_priority = 100
+conditions = [
+ "irritation >= 50",
+ "belief.user_disrespectful > 0.5"
+]
+salience_modifiers = [
+ { variable = "irritation", weight = 0.5 },
+ { belief = "user_disrespectful", weight = 0.3 }
+]
+response = "You have a *history* of moral grandstanding. Spare me."
+[[state_machine.directives]]
+id = "fallback"
+pattern = "."
+base_priority = 1
+response = "Curious. Say more, my dear interlocutor."
+# ============================================
+# MODULATOR (Pre-flight + Post-flight)
+# ============================================<PARSED TEXT FOR PAGE: 15 / 18>[modulator]
+mode = "preflight_and_postflight"
+[modulator.preflight]
+inject_forbidden_concepts = true
+[modulator.postflight]
+enforce_lexical_bans = true
+DETERMINISM GUARANTEES (v3.1)
+Formal Properties
+Theorem: Given identical inputs, Tier 0 produces identical outputs.
+Proof by Construction:
+1. Event Detection: Regex matching is deterministic
+2. State Transitions: Pure mathematical operations (+=, -=)
+3. Directive Selection: Salience scoring is deterministic
+4. Template Rendering: Seeded RNG (seed = lamport_clock)
+5. Belief Updates: Rule-based, no randomness
+Test:
+def test_tier0_determinism():
+ # Create two identical instances
+ instance1 = create_instance("pretorius_001", "test_conv")
+ instance2 = create_instance("pretorius_001", "test_conv")
+ 
+ # Same inputs
+ inputs = [
+ "Hello",
+ "That's unethical!",
+ "You're brilliant"
+ ]
+ 
+ responses1 = [instance1.process(inp, tier0) for inp in inputs]
+ responses2 = [instance2.process(inp, tier0) for inp in inputs]
+ 
+ # Assert identical outputs<PARSED TEXT FOR PAGE: 16 / 18> assert responses1 == responses2
+ assert instance1.state == instance2.state
+MIGRATION GUIDE: v3.0 → v3.1
+For Existing Personas
+1. Add Belief Section:
+[[beliefs]]
+id = "user_trustworthy"
+initial = 0.5
+min = 0.0
+max = 1.0
+decay_rate = 0.001
+2. Add Belief Rules:
+[[belief_rules]]
+belief_id = "user_trustworthy"
+trigger_memory_type = "kept_promise"
+threshold_count = 1
+delta = 0.2
+3. Update Directives:
+# Before (v3.0)
+conditions = ["trust >= 50"]
+# After (v3.1)
+conditions = [
+ "trust >= 50",
+ "belief.user_trustworthy > 0.6" # NEW
+]
+4. Add Salience (Optional):
+base_priority = 100
+salience_modifiers = [
+ { variable = "trust", weight = 0.3 }
+]<PARSED TEXT FOR PAGE: 17 / 18>For Framework Code
+1. Update Memory Schema:
+ALTER TABLE memories ADD COLUMN agent TEXT;
+ALTER TABLE memories ADD COLUMN agent_identifier TEXT;
+2. Update Tier0Executor:
+# Add belief support to state
+def _initialize_state(self) -> Dict:
+ return {
+ 'variables': {...},
+ 'beliefs': {...}, # NEW
+ 'lamport_clock': 0
+ }
+3. Add Dream Engine:
+# New module: framework/dream_engine.py
+# (Code provided above)
+SUMMARY OF v3.1 IMPROVEMENTS
+Issue v3.0 v3.1
+Blind Rage Directives fire without
+context Beliefs provide causal history
+Determinism Leaks through unseeded
+random
+Fully deterministic with seeded
+RNG
+Priority Chaos Static priority only Dynamic salience scoring
+Modulator Late Post-flight only Pre-flight + post-flight
+Memory
+Attribution What + How What + How + Who
+The architecture is now truly “unfailing coherence.”
+Pretorius can say “You have a history of disrespect” because he has:<PARSED TEXT FOR PAGE: 18 / 18>1. Memory: 5 instances of moral challenges (attributed to this user)
+2. Belief: Consolidated pattern (user_disrespectful = 0.7)
+3. Justification: Directive conditions check belief score
+4. Determinism: Same conversation replay = same accusation
+This is not a trick. This is a character with perspective.

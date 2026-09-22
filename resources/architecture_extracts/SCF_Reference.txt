@@ -1,0 +1,915 @@
+SOURCE FILE: SCF Reference.docx
+SOURCE: ChatGPT Library file file_00000000cde871f89c205caf3edf51b2
+NOTE: Extracted-text archival representation. Original binary remains in the user's Library.
+
+<PARSED TEXT FOR PAGE: 1 / 28>SoulCore Framework · v3.0 Reference
+Page 1
+SoulCore Framework
+v3.0 Reference — Design Spec & Complete Source
+Deterministic Character Engine · stdlib-only Python · Tier 0 → 3 Architecture<PARSED TEXT FOR PAGE: 2 / 28>SoulCore Framework · v3.0 Reference
+Page 2
+1 Overview & Design Philosophy
+SoulCore Framework (SCF) is a deterministic character engine for games and interactive 
+systems. It is designed to make NPCs and digital companions feel genuinely coherent over time
+— not through prompt tricks, but through real inner state, persistent memory, and a 
+mathematically enforced voice.
+1.1 Core Goals
+• Character Cohesion — Voice Gate + axioms + forbidden patterns prevent drift. A 
+character running SCF cannot become a different person no matter how the 
+conversation goes.
+• Lightweight Tier 0 — Pure Python stdlib, < 50 MB RAM idle. Runs on a Raspberry Pi or 
+inside a game with 500 simultaneous NPCs. No torch, no llama.cpp at this tier.
+• True Persistence — .snp files + SessionSnapshot survive device changes, restarts, and 
+years. Export on a laptop, import on a phone, continue identically.
+• Distillation Loop — Higher-tier AI observations become permanent Tier 0 wisdom. The 
+engine learns from every frontier-model conversation without needing the frontier model 
+to be present.
+• Testability — Automated consistency metrics: prompt-to-line, line-to-line, value drift 
+detection. "Feels genuine" must be provable.
+1.2 What Makes SCF Different
+Most NPC AI either (a) calls an LLM on every turn and hopes it stays consistent, or (b) uses 
+rigid scripts with no personality. SCF does neither. The Tier 0 state machine is the character's 
+permanent identity. Higher tiers are amplifiers that augment it — they can be removed entirely 
+and the character still functions. The .snp file is a cartridge; the storage backend is the save file.
+Key Architectural Insight
+SCF separates WHAT the character is (persona .snp file — immutable, shareable) from WHAT the 
+character remembers (storage backend — mutable, session-scoped). This is the same design as a 
+game console: the disc is the soul, the memory card is the experience.
+1.3 Tier Architecture
+SCF operates across four tiers. Each tier gracefully degrades to the one below it.
+Tier Name Latency Notes
+0 Deterministic < 10 ms Pure stdlib state machine. Always 
+available. The permanent identity.
+1 Local LLM 100–500 ms Small model (7B params) via 
+llama.cpp or ollama. No GPU <PARSED TEXT FOR PAGE: 3 / 28>SoulCore Framework · v3.0 Reference
+Page 3
+Tier Name Latency Notes
+required.
+2 Cloud (small) 500 ms–2 s Mid-tier API (GPT-4o-mini, Haiku). 
+Used when local LLM unavailable.
+3 Frontier 1–5 s Full frontier model (Claude 
+Sonnet/Opus, GPT-4). Highest 
+quality distillation.<PARSED TEXT FOR PAGE: 4 / 28>SoulCore Framework · v3.0 Reference
+Page 4
+2 9-Phase Build Plan
+The build plan reorders the original 12-session spec for better momentum: get something 
+runnable in under a week, then harden, then add intelligence.
+Phase 0 One-Time Setup (1 hour)
+Python 3.11+, pytest, project folder structure. Add tomli + pyyaml for devtools only.
+Phase 1 Foundations & Persistence (1–2 days)
+tier_interface.py, storage.py, storage_sqlite.py, storage_btree.py, session.py + unit tests. 
+Proves portability from day one.
+Phase 2 Persona & Security Core (1 day)
+persona_loader.py (TOML + migration), condition_dsl.py (no eval, injection-safe recursive 
+descent parser).
+Phase 3 Tier 0 Heart (2 days)
+tier0_executor.py — Tier0StateMachine core, then Voice Gate + proposal handling. Split into 
+two sub-sessions; the Voice Gate alone is a day of work.
+Phase 4 Memory & Voice (1–2 days)
+memory.py — MemoryManager with keyword scoring, emotional tag boost, decay. modulator.py
+— ResponseModulator with five transformations.
+Phase 5 Distillation Loop (1 day)
+distiller.py — takes a high-tier trace, extracts directives/memories/adjustments, runs the full 
+Voice Gate on the distillation, applies only if safe. This is the growth engine.
+Phase 6 Simulator & Full Tests (1 day)
+scf-devtools/simulator.py, all unit + integration tests, 10-turn conversation test, snapshot 
+roundtrip.
+Phase 7 Internal Rumination (½ day)
+A private DSL step in generate_response that updates emotional state without surfacing to the 
+user. Creates genuine inner life.
+Phase 8 Polish & Interop (½ day)<PARSED TEXT FOR PAGE: 5 / 28>SoulCore Framework · v3.0 Reference
+Page 5
+README, .snp JSON Schema, plain-text importer, benchmark script (target < 50 ms per Tier 0 
+response).
+Phase 9 Higher Tiers (after prototype ships)
+LocalLLMAmplifier, FrontierAmplifier, shared-world StorageBackend.<PARSED TEXT FOR PAGE: 6 / 28>SoulCore Framework · v3.0 Reference
+Page 6
+3 Module Design Reference
+3.1 scf/tier_interface.py
+Defines the Proposal dataclass and TierInterface ABC. The Proposal is the single structured 
+object that crosses the tier boundary. Key invariant: emotional_adjustments are DELTA values, 
+not absolute values. Every amplifier must implement amplify() and is_available().
+3.2 scf/storage.py
+Abstract StorageBackend. Three domain tables: emotional_state (variable_name → int), 
+key_memories (episodic records, max 512 chars each), learned_directives (trigger/action pairs).
+Two concrete implementations: SQLiteBackend (production) and BTreeBackend 
+(embedded/shelve).
+3.3 scf/session.py
+SessionSnapshot dataclass + checksum logic. The checksum covers entity_name, variables, 
+and last_updated only — minimal set for identity and tamper detection. Checksum formula is 
+fixed by spec and must not change between versions:
+hashlib.sha256(
+ json.dumps({
+ 'variables': snap.variables,
+ 'last_updated': snap.last_updated,
+ 'entity_name': snap.entity_name
+ }, sort_keys=True).encode()
+).hexdigest()
+3.4 scf/engine.py (SoulCoreEngine)
+The orchestration layer. Manages the full pipeline per turn: amplifier selection → Voice Gate → 
+distillation → Tier 0 fallback → memory persistence.
+Voice Gate — four steps in strict order:
+1. Confidence check: proposal.confidence >= voice.confidence_threshold
+2. Forbidden lexicon: whole-word case-insensitive regex against voice.forbidden_lexicon
+3. Axiom guard: patterns from constraints.hard_colliders
+4. Accept
+Critical Spec Rule
+Distillation (new_directives, new_knowledge, emotional_adjustments) runs unconditionally on every 
+non-None Proposal, regardless of whether the Voice Gate accepted the response_text. The higher￾tier model observed the conversation and learned things even when its exact wording was rejected. <PARSED TEXT FOR PAGE: 7 / 28>SoulCore Framework · v3.0 Reference
+Page 7
+Skipping distillation on a rejected proposal is a spec violation.<PARSED TEXT FOR PAGE: 8 / 28>SoulCore Framework · v3.0 Reference
+Page 8
+4 Complete Source Code
+All seven files are reproduced below in full. These are production-quality, stdlib-only Python 
+3.11+ modules with full type hints and module-level docstrings.
+FILE: scf/__init__.py
+Package root. Declares the framework version string.
+"""SoulCore Framework — deterministic character engine.
+This package provides a tiered, persona-driven response system that runs
+entirely on Python's standard library at Tier 0. Higher tiers (local LLM,
+frontier model) are layered on top without touching the Tier 0 core.
+"""
+__version__ = "0.1.0"<PARSED TEXT FOR PAGE: 9 / 28>SoulCore Framework · v3.0 Reference
+Page 9
+FILE: scf/tier_interface.py
+Proposal dataclass + TierInterface ABC. The contract every amplifier must satisfy.
+"""Tier interface contracts for the SoulCore Framework.
+Defines the Proposal dataclass (the communication envelope passed from a
+higher-tier amplifier back to Tier 0) and the TierInterface abstract base
+class that every amplifier must implement.
+Spec reference: Section 2.1
+"""
+from __future__ import annotations
+import abc
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+@dataclass
+class Proposal:
+ """Communication envelope from a higher-tier amplifier to Tier 0.
+ Fields
+ ------
+ response_text : Optional[str]
+ The amplifier's proposed verbatim response text. ``None`` means the
+ amplifier declines to suggest a response (Tier 0 generates its own).
+ confidence : float
+ Amplifier's self-reported confidence in *response_text*, in [0.0, 1.0].
+ The Voice Gate rejects proposals below the persona's threshold.
+ new_directives : List[Dict[str, Any]]
+ Behavioural rules to distil into Tier 0. Each entry must have at
+ minimum "trigger" (str) and "action" (str).
+ new_knowledge : List[Dict[str, Any]]
+ Declarative facts to persist. Each entry must have at minimum
+ "summary" (str) and "tags" (List[str]).
+ emotional_adjustments : Dict[str, int]
+ **DELTA values, not absolute values.** Each key is a state-variable
+ name; each value is the signed integer amount to ADD to the current
+ value. Tier 0 clamps the result to the variable's [min, max] range.
+ Example: {"hubris": +5, "affection": -3}
+ tier_used : str
+ Human-readable identifier of the producing tier.
+ trace : Dict[str, Any]
+ Arbitrary debug / audit metadata. Never affects behaviour.
+ """
+ response_text: Optional[str] = None
+ confidence: float = 1.0
+ new_directives: List[Dict[str, Any]] = field(default_factory=list)
+ new_knowledge: List[Dict[str, Any]] = field(default_factory=list)
+ emotional_adjustments: Dict[str, int] = field(default_factory=dict)
+ tier_used: str = "unknown"
+ trace: Dict[str, Any] = field(default_factory=dict)
+class TierInterface(abc.ABC):<PARSED TEXT FOR PAGE: 10 / 28>SoulCore Framework · v3.0 Reference
+Page 10
+ """Abstract base class for all SoulCore amplifier tiers.
+ Every tier (local LLM, frontier model, etc.) must subclass
+ TierInterface and implement amplify. Tier 0 itself does NOT subclass
+ this — it is the consumer, not a producer of Proposals.
+ """
+ @abc.abstractmethod
+ def amplify(
+ self,
+ user_input: str,
+ state: Dict[str, Any],
+ persona: Dict[str, Any],
+ ) -> Proposal:
+ """Generate a Proposal for Tier 0 to evaluate and possibly apply.
+ Parameters
+ ----------
+ user_input : str
+ Raw user message.
+ state : Dict[str, Any]
+ Read-only snapshot: {"variables": ..., "session_id": ..., 
+"entity_name": ...}.
+ Must not be mutated; all mutations go through the returned Proposal.
+ persona : Dict[str, Any]
+ Full parsed persona dict from the loaded .snp file.
+ """
+ @abc.abstractmethod
+ def is_available(self) -> bool:
+ """Return True if this tier's backing model/API is reachable."""
+ @property
+ @abc.abstractmethod
+ def tier_name(self) -> str:
+ """Short identifier string, e.g. "tier_2_local_llm"."""<PARSED TEXT FOR PAGE: 11 / 28>SoulCore Framework · v3.0 Reference
+Page 11
+FILE: scf/storage.py
+Abstract StorageBackend. Defines the interface for all persistence implementations.
+"""Abstract storage backend for the SoulCore Framework.
+Defines StorageBackend, the interface all concrete implementations satisfy.
+Two implementations ship with the framework:
+ - SQLiteBackend (production, ACID, file-based)
+ - BTreeBackend (shelve-based, zero-setup, embedded targets)
+Spec reference: Section 3
+"""
+from __future__ import annotations
+import abc
+from typing import Any, Dict, List, Optional
+class StorageBackend(abc.ABC):
+ """Abstract persistence layer for state, memories, and directives."""
+ # Lifecycle
+ @abc.abstractmethod
+ def close(self) -> None:
+ """Flush and release resources. Must be idempotent."""
+ # Emotional state
+ @abc.abstractmethod
+ def get_emotional_state(self, session_id: Optional[str] = None) -> Dict[str, 
+int]:
+ """Return {variable_name: int_value} map.
+ session_id filters to that session when provided; all rows otherwise.
+ Returns empty dict when no rows match.
+ """
+ @abc.abstractmethod
+ def set_emotional_state(
+ self, variable_name: str, value: int,
+ session_id: Optional[str] = None,
+ ) -> None:
+ """Upsert a single emotional-state variable."""
+ # Memories
+ @abc.abstractmethod
+ def get_memories(
+ self, limit: int = 50, tags: Optional[List[str]] = None
+ ) -> List[Dict[str, Any]]:
+ """Return memory records, newest first.
+ Each record contains at minimum:
+ id, type, summary (max 512 chars), importance (0-100),
+ emotional_impact, timestamp, agent, agent_identifier,
+ tags (List[str]), session_id.
+ tags parameter filters to records containing at least one match.
+ """
+ @abc.abstractmethod
+ def save_memory(self, memory: Dict[str, Any]) -> int:<PARSED TEXT FOR PAGE: 12 / 28>SoulCore Framework · v3.0 Reference
+Page 12
+ """Persist a new memory record. Returns assigned int id.
+ Required keys: type, summary, importance, timestamp, agent.
+ Raises ValueError on missing required keys.
+ """
+ # Directives
+ @abc.abstractmethod
+ def get_directives(self) -> List[Dict[str, Any]]:
+ """Return all directives ordered by descending priority.
+ Each record contains at minimum:
+ id, trigger (lower), action, reason, importance, priority,
+ namespace, created, used_count.
+ """
+ @abc.abstractmethod
+ def save_directive(self, directive: Dict[str, Any]) -> int:
+ """Persist a new directive. Returns assigned int id.
+ Required keys: trigger, action.
+ Raises ValueError on missing required keys.
+ """
+ @abc.abstractmethod
+ def increment_directive_used_count(self, directive_id: int) -> None:
+ """Increment used_count of the given directive by one. Silent on missing 
+id."""<PARSED TEXT FOR PAGE: 13 / 28>SoulCore Framework · v3.0 Reference
+Page 13
+FILE: scf/storage_sqlite.py
+SQLiteBackend — production persistence with ACID guarantees and corruption recovery.
+"""SQLite storage backend for the SoulCore Framework.
+Implements StorageBackend using Python's stdlib sqlite3.
+Corruption recovery: corrupt file is renamed to <path>.corrupt.<timestamp>
+and a fresh empty database is created in its place.
+Spec reference: Section 3.1
+"""
+from __future__ import annotations
+import json, logging, os, sqlite3
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from scf.storage import StorageBackend
+logger = logging.getLogger(__name__)
+_DDL = """
+PRAGMA journal_mode=WAL;
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS emotional_state (
+ variable_name TEXT PRIMARY KEY,
+ value INTEGER NOT NULL,
+ last_updated TEXT NOT NULL,
+ session_id TEXT
+);
+CREATE TABLE IF NOT EXISTS key_memories (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ type TEXT NOT NULL,
+ summary TEXT NOT NULL CHECK(length(summary) <= 512),
+ importance INTEGER NOT NULL CHECK(importance BETWEEN 0 AND 100),
+ emotional_impact REAL,
+ timestamp TEXT NOT NULL,
+ agent TEXT NOT NULL,
+ agent_identifier TEXT,
+ tags TEXT NOT NULL DEFAULT '[]',
+ session_id TEXT
+);
+CREATE TABLE IF NOT EXISTS learned_directives (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ trigger TEXT NOT NULL,
+ action TEXT NOT NULL,
+ reason TEXT NOT NULL DEFAULT '',
+ importance TEXT NOT NULL DEFAULT 'normal',
+ priority INTEGER NOT NULL DEFAULT 0,
+ namespace TEXT NOT NULL DEFAULT 'user',
+ created TEXT NOT NULL,
+ used_count INTEGER NOT NULL DEFAULT 0
+);
+"""<PARSED TEXT FOR PAGE: 14 / 28>SoulCore Framework · v3.0 Reference
+Page 14
+class SQLiteBackend(StorageBackend):
+ """Production backend backed by a local SQLite file.
+ db_path=":memory:" for in-process testing.
+ """
+ def __init__(self, db_path: str) -> None:
+ self._db_path = db_path
+ self._conn: Optional[sqlite3.Connection] = None
+ self._connect()
+ def _connect(self) -> None:
+ if self._db_path != ":memory:":
+ os.makedirs(os.path.dirname(self._db_path) or ".", exist_ok=True)
+ self._conn = self._open_with_recovery(self._db_path)
+ else:
+ self._conn = sqlite3.connect(":memory:", check_same_thread=False)
+ self._conn.row_factory = sqlite3.Row
+ self._apply_schema()
+ def _open_with_recovery(self, path: str) -> sqlite3.Connection:
+ try:
+ conn = sqlite3.connect(path, check_same_thread=False)
+ conn.row_factory = sqlite3.Row
+ conn.execute("PRAGMA integrity_check(1)")
+ return conn
+ except (sqlite3.DatabaseError, sqlite3.OperationalError) as exc:
+ logger.warning("Corrupt DB at %r: %s. Recreating.", path, exc)
+ ts = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+ try: os.rename(path, f"{path}.corrupt.{ts}")
+ except OSError as e: logger.error("Could not rename: %s", e)
+ conn = sqlite3.connect(path, check_same_thread=False)
+ conn.row_factory = sqlite3.Row
+ return conn
+ def _apply_schema(self) -> None:
+ assert self._conn is not None
+ self._conn.executescript(_DDL)
+ self._conn.commit()
+ @staticmethod
+ def _now_iso() -> str:
+ return datetime.now(tz=timezone.utc).isoformat()
+ def close(self) -> None:
+ if self._conn is not None:
+ try: self._conn.commit(); self._conn.close()
+ except sqlite3.Error: pass
+ finally: self._conn = None
+ def get_emotional_state(self, session_id=None) -> Dict[str, int]:
+ cur = self._conn.cursor()
+ if session_id is not None:
+ cur.execute("SELECT variable_name, value FROM emotional_state WHERE 
+session_id=?", (session_id,))
+ else:
+ cur.execute("SELECT variable_name, value FROM emotional_state")
+ return {r["variable_name"]: r["value"] for r in cur.fetchall()}
+ def set_emotional_state(self, variable_name, value, session_id=None) -> None:<PARSED TEXT FOR PAGE: 15 / 28>SoulCore Framework · v3.0 Reference
+Page 15
+ self._conn.execute("""
+ INSERT INTO emotional_state (variable_name, value, last_updated, 
+session_id)
+ VALUES (?, ?, ?, ?)
+ ON CONFLICT(variable_name) DO UPDATE SET
+ value=excluded.value, last_updated=excluded.last_updated,
+ session_id=excluded.session_id
+ """, (variable_name, value, self._now_iso(), session_id))
+ self._conn.commit()
+ def get_memories(self, limit=50, tags=None) -> List[Dict[str, Any]]:
+ cur = self._conn.cursor()
+ cur.execute("SELECT * FROM key_memories ORDER BY timestamp DESC")
+ results = []
+ for row in cur.fetchall():
+ record = dict(row)
+ record["tags"] = json.loads(record.get("tags") or "[]")
+ if tags:
+ lt = [t.lower() for t in tags]
+ rt = [t.lower() for t in record["tags"]]
+ if not any(t in rt for t in lt): continue
+ results.append(record)
+ if 0 < limit <= len(results): break
+ return results
+ def save_memory(self, memory: Dict[str, Any]) -> int:
+ req = {"type","summary","importance","timestamp","agent"}
+ missing = req - memory.keys()
+ if missing: raise ValueError(f"save_memory: missing {missing}")
+ cur = self._conn.execute("""
+ INSERT INTO key_memories
+ (type, summary, importance, emotional_impact, timestamp,
+ agent, agent_identifier, tags, session_id)
+ VALUES (?,?,?,?,?,?,?,?,?)""",
+ (memory["type"], memory["summary"][:512], int(memory["importance"]),
+ memory.get("emotional_impact"), memory["timestamp"], memory["agent"],
+ memory.get("agent_identifier"), json.dumps(memory.get("tags") or []),
+ memory.get("session_id")))
+ self._conn.commit()
+ return cur.lastrowid
+ def get_directives(self) -> List[Dict[str, Any]]:
+ cur = self._conn.cursor()
+ cur.execute("SELECT * FROM learned_directives ORDER BY priority DESC, id 
+ASC")
+ return [dict(r) for r in cur.fetchall()]
+ def save_directive(self, directive: Dict[str, Any]) -> int:
+ req = {"trigger","action"}
+ missing = req - directive.keys()
+ if missing: raise ValueError(f"save_directive: missing {missing}")
+ cur = self._conn.execute("""
+ INSERT INTO learned_directives
+ (trigger, action, reason, importance, priority, namespace, created,
+used_count)
+ VALUES (?,?,?,?,?,?,?,?)""",
+ (directive["trigger"].lower(), directive["action"],
+ directive.get("reason",""), directive.get("importance","normal"),
+ directive.get("priority",0), directive.get("namespace","user"),
+ directive.get("created", self._now_iso()), 
+directive.get("used_count",0)))<PARSED TEXT FOR PAGE: 16 / 28>SoulCore Framework · v3.0 Reference
+Page 16
+ self._conn.commit()
+ return cur.lastrowid
+ def increment_directive_used_count(self, directive_id: int) -> None:
+ self._conn.execute(
+ "UPDATE learned_directives SET used_count=used_count+1 WHERE id=?",
+ (directive_id,))
+ self._conn.commit()<PARSED TEXT FOR PAGE: 17 / 28>SoulCore Framework · v3.0 Reference
+Page 17
+FILE: scf/storage_btree.py
+BTreeBackend — shelve-based persistence for embedded/constrained targets.
+"""Shelve-based BTree storage backend for the SoulCore Framework.
+Implements StorageBackend using stdlib shelve. Works on constrained targets.
+All values serialised with json. Interface identical to SQLiteBackend.
+Spec reference: Section 3.1
+"""
+from __future__ import annotations
+import json, logging, shelve
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from scf.storage import StorageBackend
+logger = logging.getLogger(__name__)
+_PREFIX_EMOTION = "emotion:"
+_PREFIX_MEMORY = "memory:"
+_PREFIX_DIRECTIVE = "directive:"
+_COUNTER_MEMORY = "__counter_memory"
+_COUNTER_DIRECTIVE = "__counter_directive"
+class BTreeBackend(StorageBackend):
+ """Shelve-based backend. db_path="" or ":memory:" for in-process testing."""
+ def __init__(self, db_path: str) -> None:
+ self._db_path = db_path
+ self._use_memory = db_path in ("", ":memory:")
+ self._store: Any = {} if self._use_memory else shelve.open(db_path, 
+flag="c", writeback=True)
+ self._closed = False
+ @staticmethod
+ def _now_iso() -> str: return datetime.now(tz=timezone.utc).isoformat()
+ def _next_id(self, counter_key: str) -> int:
+ n = self._store.get(counter_key, 0) + 1
+ self._store[counter_key] = n
+ return n
+ def _sync(self) -> None:
+ if not self._use_memory and not self._closed:
+ try: self._store.sync()
+ except AttributeError: pass
+ def close(self) -> None:
+ if not self._closed:
+ if not self._use_memory:
+ try: self._store.close()
+ except Exception: pass
+ self._closed = True<PARSED TEXT FOR PAGE: 18 / 28>SoulCore Framework · v3.0 Reference
+Page 18
+ def get_emotional_state(self, session_id=None) -> Dict[str, int]:
+ result = {}
+ for key in list(self._store.keys()):
+ if not key.startswith(_PREFIX_EMOTION): continue
+ rec = json.loads(self._store[key])
+ if session_id is not None and rec.get("session_id") != session_id: 
+continue
+ result[key[len(_PREFIX_EMOTION):]] = int(rec["value"])
+ return result
+ def set_emotional_state(self, variable_name, value, session_id=None) -> None:
+ self._store[f"{_PREFIX_EMOTION}{variable_name}"] = json.dumps(
+ {"value": value, "last_updated": self._now_iso(), "session_id": 
+session_id})
+ self._sync()
+ def get_memories(self, limit=50, tags=None) -> List[Dict[str, Any]]:
+ recs = []
+ for key in list(self._store.keys()):
+ if not key.startswith(_PREFIX_MEMORY): continue
+ rec = dict(json.loads(self._store[key]))
+ rec["tags"] = rec.get("tags") or []
+ if tags:
+ lt = [t.lower() for t in tags]
+ rt = [t.lower() for t in rec["tags"]]
+ if not any(t in rt for t in lt): continue
+ recs.append(rec)
+ recs.sort(key=lambda r: r.get("timestamp",""), reverse=True)
+ return recs[:limit] if limit > 0 else recs
+ def save_memory(self, memory: Dict[str, Any]) -> int:
+ req = {"type","summary","importance","timestamp","agent"}
+ missing = req - memory.keys()
+ if missing: raise ValueError(f"save_memory: missing {missing}")
+ new_id = self._next_id(_COUNTER_MEMORY)
+ rec = {
+ "id": new_id, "type": memory["type"],
+ "summary": memory["summary"][:512],
+ "importance": int(memory["importance"]),
+ "emotional_impact": memory.get("emotional_impact"),
+ "timestamp": memory["timestamp"], "agent": memory["agent"],
+ "agent_identifier": memory.get("agent_identifier"),
+ "tags": memory.get("tags") or [],
+ "session_id": memory.get("session_id"),
+ }
+ self._store[f"{_PREFIX_MEMORY}{new_id}"] = json.dumps(rec)
+ self._sync()
+ return new_id
+ def get_directives(self) -> List[Dict[str, Any]]:
+ recs = []
+ for key in list(self._store.keys()):
+ if not key.startswith(_PREFIX_DIRECTIVE): continue
+ recs.append(dict(json.loads(self._store[key])))
+ recs.sort(key=lambda r: (-r.get("priority",0), r.get("id",0)))
+ return recs
+ def save_directive(self, directive: Dict[str, Any]) -> int:
+ req = {"trigger","action"}
+ missing = req - directive.keys()
+ if missing: raise ValueError(f"save_directive: missing {missing}")<PARSED TEXT FOR PAGE: 19 / 28>SoulCore Framework · v3.0 Reference
+Page 19
+ new_id = self._next_id(_COUNTER_DIRECTIVE)
+ rec = {
+ "id": new_id, "trigger": directive["trigger"].lower(),
+ "action": directive["action"], "reason": directive.get("reason",""),
+ "importance": directive.get("importance","normal"),
+ "priority": directive.get("priority",0),
+ "namespace": directive.get("namespace","user"),
+ "created": directive.get("created", self._now_iso()),
+ "used_count": directive.get("used_count",0),
+ }
+ self._store[f"{_PREFIX_DIRECTIVE}{new_id}"] = json.dumps(rec)
+ self._sync()
+ return new_id
+ def increment_directive_used_count(self, directive_id: int) -> None:
+ key = f"{_PREFIX_DIRECTIVE}{directive_id}"
+ if key not in self._store: return
+ rec = dict(json.loads(self._store[key]))
+ rec["used_count"] = rec.get("used_count",0) + 1
+ self._store[key] = json.dumps(rec)
+ self._sync()<PARSED TEXT FOR PAGE: 20 / 28>SoulCore Framework · v3.0 Reference
+Page 20
+FILE: scf/session.py
+SessionSnapshot dataclass, checksum logic, and serialisation helpers.
+"""Session snapshot serialisation for the SoulCore Framework.
+SessionSnapshot is the portable, self-verifying transport envelope that
+carries all runtime state from one device or process to another.
+Spec reference: Section 9
+"""
+from __future__ import annotations
+import hashlib, json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+class SessionImportError(Exception):
+ """Raised when a snapshot cannot be safely imported.
+ Causes: checksum mismatch, entity name mismatch, missing required fields.
+ """
+@dataclass
+class SessionSnapshot:
+ """Portable, checksummed container for Tier 0 runtime state.
+ Fields
+ ------
+ entity_name : str — canonical persona name; import validation rejects 
+mismatches.
+ variables : Dict[str, int] — full emotional-state map at export time.
+ directives : List[Dict] — all learned directives at export time.
+ memories : List[Dict] — all stored memories at export time.
+ last_updated : str — ISO-8601 UTC timestamp of export.
+ session_id : str — identifier of the exporting session.
+ checksum : str — SHA-256 hex digest (set by create_snapshot).
+ scf_version : str — scf.__version__ at export time.
+ """
+ entity_name: str
+ variables: Dict[str, int]
+ directives: List[Dict[str, Any]]
+ memories: List[Dict[str, Any]]
+ last_updated: str
+ session_id: str
+ checksum: str = ""
+ scf_version: str = ""
+def _compute_checksum(snap: SessionSnapshot) -> str:
+ """Compute the canonical SHA-256 checksum.
+ Covers entity_name, variables, last_updated only — minimal tamper detection.
+ sort_keys=True ensures order-independent digest.
+ """
+ payload = {
+ "variables": snap.variables,<PARSED TEXT FOR PAGE: 21 / 28>SoulCore Framework · v3.0 Reference
+Page 21
+ "last_updated": snap.last_updated,
+ "entity_name": snap.entity_name,
+ }
+ return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+def create_snapshot(
+ *, entity_name: str, variables: Dict[str, int],
+ directives: List[Dict[str, Any]], memories: List[Dict[str, Any]],
+ session_id: str, scf_version: str = "",
+) -> SessionSnapshot:
+ """Build a fully populated, checksummed SessionSnapshot."""
+ now = datetime.now(tz=timezone.utc).isoformat()
+ snap = SessionSnapshot(
+ entity_name=entity_name, variables=dict(variables),
+ directives=list(directives), memories=list(memories),
+ last_updated=now, session_id=session_id, scf_version=scf_version,
+ )
+ snap.checksum = _compute_checksum(snap)
+ return snap
+def snapshot_to_dict(snap: SessionSnapshot) -> Dict[str, Any]:
+ return {
+ "entity_name": snap.entity_name, "variables": snap.variables,
+ "directives": snap.directives, "memories": snap.memories,
+ "last_updated": snap.last_updated, "session_id": snap.session_id,
+ "checksum": snap.checksum, "scf_version": snap.scf_version,
+ }
+def snapshot_from_dict(data: Dict[str, Any]) -> SessionSnapshot:
+ required = {"entity_name","variables","directives","memories",
+ "last_updated","session_id","checksum"}
+ missing = required - data.keys()
+ if missing: raise SessionImportError(f"Missing fields: {sorted(missing)}")
+ return SessionSnapshot(
+ entity_name=data["entity_name"], variables=data["variables"],
+ directives=data["directives"], memories=data["memories"],
+ last_updated=data["last_updated"], session_id=data["session_id"],
+ checksum=data["checksum"], scf_version=data.get("scf_version",""),
+ )
+def validate_snapshot(snap: SessionSnapshot, expected_entity_name: Optional[str] = 
+None) -> None:
+ """Verify checksum and optionally entity name. Raises SessionImportError on 
+failure."""
+ computed = _compute_checksum(snap)
+ if computed != snap.checksum:
+ raise SessionImportError(
+ f"Checksum mismatch: stored={snap.checksum!r}, computed={computed!r}")
+ if expected_entity_name and snap.entity_name != expected_entity_name:
+ raise SessionImportError(
+ f"Entity mismatch: snapshot={snap.entity_name!r}, 
+running={expected_entity_name!r}")
+def snapshot_to_json(snap: SessionSnapshot, *, indent: Optional[int] = 2) -> str:
+ return json.dumps(snapshot_to_dict(snap), indent=indent, sort_keys=False)<PARSED TEXT FOR PAGE: 22 / 28>SoulCore Framework · v3.0 Reference
+Page 22
+def snapshot_from_json(raw: str) -> SessionSnapshot:
+ try: data = json.loads(raw)
+ except json.JSONDecodeError as e: raise SessionImportError(f"Malformed JSON: 
+{e}") from e
+ return snapshot_from_dict(data)<PARSED TEXT FOR PAGE: 23 / 28>SoulCore Framework · v3.0 Reference
+Page 23
+FILE: scf/engine.py
+SoulCoreEngine — the main orchestrator. Voice Gate, distillation, Tier 0 fallback.
+"""Core Engine for the SoulCore Framework.
+Orchestrates the full per-turn pipeline:
+ 1. Query higher-tier amplifiers in priority order.
+ 2. Run the four-step Voice Gate on any Proposal.
+ 3. Always distil knowledge/directives regardless of gate outcome.
+ 4. Fall back to persona-faithful Tier 0 response when needed.
+ 5. Persist the interaction to the memory store.
+Spec reference: Sections 2.2, 3, 4.4, 9, 10.
+"""
+from __future__ import annotations
+import copy, logging, re
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+from scf.storage import StorageBackend
+from scf.tier_interface import Proposal, TierInterface
+logger = logging.getLogger(__name__)
+_SUMMARY_MAX = 480 # hard cap; storage limit is 512
+class SoulCoreEngine:
+ """Main handler for character interactions.
+ Parameters
+ ----------
+ persona : Dict[str, Any] — full loaded .snp character definition.
+ storage : StorageBackend — active memory + emotion database.
+ amplifiers : List[TierInterface] — highest to lowest priority.
+ session_id : str — unique identifier for the current session.
+ """
+ def __init__(
+ self, persona: Dict[str, Any], storage: StorageBackend,
+ amplifiers: List[TierInterface], session_id: str,
+ ) -> None:
+ self.persona = persona
+ self.storage = storage
+ self.amplifiers = amplifiers
+ self.session_id = session_id
+ # Read threshold from correct persona location: voice.confidence_threshold
+ self.voice_threshold: float = (
+ persona.get("voice", {}).get("confidence_threshold", 0.7))
+ # Pre-compile forbidden lexicon (whole-word, case-insensitive)
+ raw_forbidden: List[str] = persona.get("voice", 
+{}).get("forbidden_lexicon", [])
+ self._forbidden_patterns = [
+ re.compile(r"\b" + re.escape(w) + r"\b", re.IGNORECASE)
+ for w in raw_forbidden<PARSED TEXT FOR PAGE: 24 / 28>SoulCore Framework · v3.0 Reference
+Page 24
+ ]
+ # Pre-compile axiom guard patterns from constraints.hard_colliders
+ self._axiom_patterns: List[Tuple[str, re.Pattern]] = []
+ for collider in persona.get("constraints", {}).get("hard_colliders", []):
+ for raw in collider.get("patterns", []):
+ try:
+ self._axiom_patterns.append(
+ (collider.get("id","unnamed"), re.compile(raw, 
+re.IGNORECASE)))
+ except re.error as e:
+ logger.warning("Bad axiom pattern %r: %s", raw, e)
+ # ── Public API ──────────────────────────────────────────────────
+ def process_input(self, user_input: str) -> str:
+ """Full pipeline. Always returns a non-empty string."""
+ try:
+ return self._process_input_inner(user_input)
+ except Exception as exc:
+ logger.error("Unhandled in process_input: %s", exc, exc_info=True)
+ name = self.persona.get("core", {}).get("name", "I")
+ return f"{name} pauses, momentarily lost in thought."
+ # ── Internal pipeline ───────────────────────────────────────────
+ def _process_input_inner(self, user_input: str) -> str:
+ state = self._get_read_only_state()
+ proposal: Optional[Proposal] = None
+ # Step 1: Try each amplifier highest-priority first
+ for amp in self.amplifiers:
+ if not amp.is_available(): continue
+ try:
+ proposal = amp.amplify(user_input, state, self.persona)
+ logger.info("Proposal received from %r.", amp.tier_name)
+ break
+ except Exception as exc:
+ logger.error("Amplifier %r failed: %s", amp.tier_name, exc, 
+exc_info=True)
+ # Step 2: Always distil — runs regardless of Voice Gate outcome
+ if proposal is not None:
+ self._distil_proposal(proposal)
+ # Step 3: Voice Gate on response text
+ final_response = ""
+ if proposal is not None and proposal.response_text:
+ accepted, reason = self._apply_voice_gate(proposal)
+ if accepted:
+ final_response = proposal.response_text
+ else:
+ logger.warning("Voice Gate rejected from %r: %s",
+ proposal.tier_used, reason)
+ # Step 4: Persona-faithful Tier 0 fallback
+ if not final_response:
+ final_response = self._tier_0_fallback(user_input)
+ # Step 5: Persist interaction<PARSED TEXT FOR PAGE: 25 / 28>SoulCore Framework · v3.0 Reference
+Page 25
+ summary = f"User: '{user_input[:200]}' | Response: 
+'{final_response[:260]}'"
+ self.storage.save_memory({
+ "type": "dialog", "summary": summary[:_SUMMARY_MAX],
+ "importance": 50, "timestamp": self._now_iso(),
+ "agent": "self", "session_id": self.session_id, "tags": [],
+ })
+ return final_response
+ # ── Voice Gate (Section 2.2) ────────────────────────────────────
+ def _apply_voice_gate(self, proposal: Proposal) -> Tuple[bool, str]:
+ """Four-step gate. Returns (accepted, rejection_reason)."""
+ text = proposal.response_text or ""
+ # 1. Confidence
+ if proposal.confidence < self.voice_threshold:
+ return False, f"confidence {proposal.confidence:.3f} < 
+{self.voice_threshold:.3f}"
+ # 2. Forbidden lexicon
+ hit = self._check_forbidden_lexicon(text)
+ if hit: return False, f"forbidden_lexicon: {hit!r}"
+ # 3. Axiom guards
+ hit = self._check_axiom_guards(text)
+ if hit: return False, f"axiom_guard violation: {hit!r}"
+ # 4. Accept
+ return True, ""
+ def _check_forbidden_lexicon(self, text: str) -> Optional[str]:
+ raw_words = self.persona.get("voice", {}).get("forbidden_lexicon", [])
+ for pattern, word in zip(self._forbidden_patterns, raw_words):
+ if pattern.search(text): return word
+ return None
+ def _check_axiom_guards(self, text: str) -> Optional[str]:
+ for collider_id, pattern in self._axiom_patterns:
+ if pattern.search(text): return collider_id
+ return None
+ # ── Distillation (Section 10) ───────────────────────────────────
+ def _distil_proposal(self, proposal: Proposal) -> None:
+ """Apply all learnings from a proposal unconditionally."""
+ if proposal.emotional_adjustments:
+ current = self.storage.get_emotional_state(self.session_id)
+ for var, delta in proposal.emotional_adjustments.items():
+ new_val = max(0, min(100, current.get(var, 50) + delta))
+ self.storage.set_emotional_state(var, new_val, self.session_id)
+ for knowledge in proposal.new_knowledge:
+ rec = dict(knowledge)
+ rec.setdefault("timestamp", self._now_iso())
+ rec.setdefault("session_id", self.session_id)
+ rec.setdefault("agent", proposal.tier_used)
+ rec.setdefault("tags", [])
+ for req in ("type","summary","importance"):
+ if req not in rec:
+ logger.warning("Knowledge missing %r, skipping: %s", req, rec)
+ break
+ else:
+ self.storage.save_memory(rec)
+ for directive in proposal.new_directives:
+ rec = dict(directive)<PARSED TEXT FOR PAGE: 26 / 28>SoulCore Framework · v3.0 Reference
+Page 26
+ if "trigger" not in rec or "action" not in rec:
+ logger.warning("Directive missing trigger/action, skipping: %s", 
+rec)
+ continue
+ rec.setdefault("namespace", proposal.tier_used)
+ rec.setdefault("reason", "distilled from amplifier proposal")
+ self.storage.save_directive(rec)
+ # ── Tier 0 fallback ─────────────────────────────────────────────
+ def _tier_0_fallback(self, user_input: str) -> str:
+ """Persona-faithful response using characteristic phrases and templates.
+ STUB: replace with self.tier0_machine.generate_response() in Phase 3.
+ """
+ input_lower = user_input.lower()
+ voice = self.persona.get("voice", {})
+ for block in voice.get("characteristic_phrases", []):
+ examples = block.get("examples", [])
+ if not examples: continue
+ if block.get("context") == "greeting" and any(
+ w in input_lower for w in ("hello","hi","greetings","good day")):
+ return examples[0]
+ templates = self.persona.get("templates", {})
+ uncertain = templates.get("uncertain", [])
+ if uncertain: return uncertain[0]
+ name = self.persona.get("core", {}).get("name", "I")
+ truths = self.persona.get("core", {}).get("truths", [])
+ if truths: return f"{name} considers your words. {truths[0]}"
+ return f"{name} regards you with measured silence."
+ # ── Helpers ─────────────────────────────────────────────────────
+ def _get_read_only_state(self) -> Dict[str, Any]:
+ """Deep copy prevents amplifiers mutating live state."""
+ return copy.deepcopy({
+ "session_id": self.session_id,
+ "entity_name": self.persona.get("core", {}).get("name", "Unknown"),
+ "variables": self.storage.get_emotional_state(self.session_id),
+ })
+ @staticmethod
+ def _now_iso() -> str:
+ return datetime.now(tz=timezone.utc).isoformat()<PARSED TEXT FOR PAGE: 27 / 28>SoulCore Framework · v3.0 Reference
+Page 27
+5 Key Invariants & Implementation Notes
+5.1 Invariants That Must Never Be Broken
+• emotional_adjustments are DELTA values. Never absolute. Applying them absolute 
+silently corrupts state.
+• Distillation runs on every non-None Proposal, regardless of Voice Gate outcome.
+• The Voice Gate always runs four steps in order. Skipping step 3 (axiom guards) is a 
+security hole.
+• The session checksum formula is fixed. It must not change between versions — old 
+snapshots must always validate.
+• Dialog summaries are capped at 480 chars in engine.py (hard limit is 512 at the storage 
+layer).
+• Tier 0 fallback must stay in character. No meta responses like 'offline mode'.
+• No eval() or exec() anywhere in the codebase. The DSL parser (Phase 2) uses recursive
+descent.
+5.2 Persona File Structure (TOML .snp)
+The key paths engine.py reads at init:
+[voice]
+confidence_threshold = 0.75 # Voice Gate step 1
+forbidden_lexicon = ["internet", "AI", "basically"] # Gate step 2
+[[voice.characteristic_phrases]]
+context = "greeting"
+examples = ["Ah, my dear interlocutor. What brings you to my laboratory?"]
+[core]
+name = "Dr. Septimus Pretorius"
+truths = ["I cultivate life — I do not assemble it."]
+[[constraints.hard_colliders]] # Voice Gate step 3
+id = "temporal_lock"
+patterns = ['\\b(19|20)\\d{2}\\b', "internet"]
+5.3 Verification Sequence
+Run after creating Phase 1 files to confirm everything is wired correctly:
+python -c "from scf import __version__; print('init OK:', __version__)"
+python -c "from scf.tier_interface import Proposal; p = Proposal(); 
+print('tier_interface OK')"
+python -c "from scf.storage_sqlite import SQLiteBackend; b = 
+SQLiteBackend(':memory:'); b.set_emotional_state('hubris', 75); print('sqlite OK:',
+b.get_emotional_state())"
+python -c "from scf.storage_btree import BTreeBackend; b = 
+BTreeBackend(':memory:'); b.set_emotional_state('hubris', 75); print('btree OK:', 
+b.get_emotional_state())"
+python -c "
+from scf.session import create_snapshot, snapshot_to_json, snapshot_from_json, <PARSED TEXT FOR PAGE: 28 / 28>SoulCore Framework · v3.0 Reference
+Page 28
+validate_snapshot
+s = create_snapshot(entity_name='Dr. Septimus Pretorius', variables={'hubris': 75},
+ directives=[], memories=[], session_id='test_001')
+s2 = snapshot_from_json(snapshot_to_json(s))
+validate_snapshot(s2, expected_entity_name='Dr. Septimus Pretorius')
+print('session OK, checksum:', s2.checksum[:16], '...')
+"
