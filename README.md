@@ -57,7 +57,7 @@ Agent Pretorius may inspect completed unblinded experiments after his correspond
 
 ## Validation
 
-The runtime uses only the Python standard library and targets Python 3.11 or newer. Run:
+The runtime uses only the Python standard library and targets Python 3.11 or newer. The Hermes distribution requires Hermes 0.21.4 or newer because it relies on the current profile-distribution, plugin-hook, cron, goal, and loop behavior. Run:
 
 ```bash
 python scripts/readiness.py

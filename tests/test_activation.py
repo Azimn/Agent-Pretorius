@@ -23,6 +23,10 @@ class ActivationDefinitionTests(unittest.TestCase):
             self.assertIn(routine["skill"], {"pretorius-life", "pretorius-research"})
             self.assertTrue(routine["prompt"])
 
+    def test_pulse_runs_hourly(self):
+        pulse = [r for r in mod.ROUTINES if r["name"] == "Pretorius Pulse"][0]
+        self.assertEqual(pulse["schedule"], "every 1h")
+
     def test_lab_brief_uses_configured_delivery(self):
         brief = [r for r in mod.ROUTINES if r["name"] == "Pretorius Lab Brief"][0]
         self.assertEqual(brief["delivery"], "configured")

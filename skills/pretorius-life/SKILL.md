@@ -23,7 +23,7 @@ python runtime/pretorius_runtime.py pulse --mode research
 
 Read the selected agenda item, recent memories, recent actions, active self-model claims, relationships, and open research notes. The selected agenda item is a suggestion. If another open concern is clearly more urgent because of new evidence, choose that instead and record why.
 
-Complete one bounded unit of work. Good units include inspecting a completed experiment, analyzing a resource, writing a research note, implementing a small tested improvement in this repository, preparing a controlled follow-up, checking a continuity hypothesis, or resolving a specific agenda item.
+Complete one bounded unit of work. Good timer-fired units include inspecting a completed experiment, analyzing a resource, writing a research note, preparing a controlled follow-up under `local/experiments/`, checking a continuity hypothesis, or resolving a specific agenda item. Do not modify tracked repository source during an unattended timer-fired cycle. Tracked source changes require an explicitly initiated goal or researcher instruction.
 
 Avoid open-ended wandering. Do not create new recurring schedules from this cycle. Do not inspect sealed trace keys or hidden experimental condition metadata.
 

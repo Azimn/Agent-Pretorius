@@ -69,5 +69,14 @@
     "LoRA adapter weights/config/model card not located",
     "v18 dataset not located"
   ],
-  "note": "Original binary PDF/DOCX references remain in ChatGPT Library; extracted-text archival representations are included."
+  "note": "The files list inventories archived Pretorius source evidence. runtime_support_files lists later Agent Pretorius operational resources. Original binary PDF/DOCX references remain in ChatGPT Library; extracted-text archival representations are included.",
+  "archive_file_count": 59,
+  "runtime_support_files": [
+    "resources/seed_agenda.json",
+    "resources/evaluation/agent_continuity_prompts.json",
+    "resources/model/README.md",
+    "resources/identity/AGENTS.md",
+    "resources/lora/AGENTS.md",
+    "resources/legacy_prompts/AGENTS.md"
+  ]
 }
