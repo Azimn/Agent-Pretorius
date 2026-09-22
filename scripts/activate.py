@@ -87,13 +87,18 @@ def ensure_config(profile: str, root: Path) -> list[str]:
         "loops.self_paced_floor_seconds": "60",
         "loops.self_paced_ceiling_seconds": "900",
         "agent.clarify_timeout": "300",
+        "skills.create_dir": str(root / "local" / "learned_skills"),
+        "plugins.hook_callback_timeout": "5",
     }
     for key, value in values.items():
         proc = run(hermes_prefix(profile) + ["config", "set", key, value], check=False)
         if proc.returncode != 0:
             raise RuntimeError(f"Failed to set {key}: {proc.stderr or proc.stdout}")
         changes.append(key)
-    plugin = run(hermes_prefix(profile) + ["plugins", "enable", "pretorius-state"], check=False)
+    plugin = run(
+        hermes_prefix(profile) + ["plugins", "enable", "pretorius-state", "--no-allow-tool-override"],
+        check=False,
+    )
     if plugin.returncode != 0:
         raise RuntimeError(f"Failed to enable pretorius-state plugin: {plugin.stderr or plugin.stdout}")
     changes.append("plugins.enabled:pretorius-state")
@@ -102,10 +107,19 @@ def ensure_config(profile: str, root: Path) -> list[str]:
 def initialize_runtime(root: Path) -> dict:
     py = sys.executable
     runtime = root / "runtime" / "pretorius_runtime.py"
+    research = root / "runtime" / "research_library.py"
     seed = root / "resources" / "seed_agenda.json"
     init = run([py, str(runtime), "init"])
     seeded = run([py, str(runtime), "seed-agenda", str(seed)])
-    return {"init": init.stdout.strip(), "seed": seeded.stdout.strip()}
+    research_init = run([py, str(research), "init"])
+    learned_skills = root / "local" / "learned_skills"
+    learned_skills.mkdir(parents=True, exist_ok=True)
+    return {
+        "init": init.stdout.strip(),
+        "seed": seeded.stdout.strip(),
+        "research": research_init.stdout.strip(),
+        "learned_skills": str(learned_skills),
+    }
 
 def create_routines(profile: str, root: Path, deliver: str) -> dict[str, str]:
     current = existing_cron_text(profile)
