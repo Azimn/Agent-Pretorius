@@ -1,0 +1,2635 @@
+SOURCE FILE: Digital Companion System - Complete Guide(1).pdf
+SOURCE: ChatGPT Library file file_00000000f5a871fbba6c5aab342b1533
+NOTE: Extracted-text archival representation. Original binary remains in the user's Library.
+
+<PARSED TEXT FOR PAGE: 1 / 68>Digital Companion System
+A Portable, Coherent AI Character Framework
+Automatic Adaptation System (Platform Intelligence)
+The character file includes an automatic adaptation layer that detects the runtime
+environment and automatically configures itself for optimal performance. Users never
+need to manually configure flags - the system adapts intelligently.
+Auto-Detection Architecture
+[Character Loads] → [Detect Platform] → [Detect Capabilities] 
+ → [Auto-Configure Features] → [Ready to Use]
+Platform Detection:
+class PlatformDetector:
+ """Automatically detect runtime environment and capabilities."""
+ 
+ @staticmethod
+ def detect():
+ """Return platform profile with capabilities."""
+ 
+ platform = {
+ 'type': None, # 'game', 'mobile', 'web', 'cli', 'embedded'
+ 'model_tier': None, # 'tiny', 'small', 'medium', 'frontier'
+ 'has_network': None, # True/False
+ 'memory_limit': None, # bytes available
+ 'latency_tolerance': None, # 'realtime', 'interactive', 'async'
+ 'persistence': None, # 'session', 'local', 'cloud'
+ }
+ 
+ # Detect platform type
+ try:
+ import unity # Check for Unity
+ platform['type'] = 'game'
+ platform['latency_tolerance'] = 'realtime'<PARSED TEXT FOR PAGE: 2 / 68> except ImportError:
+ pass
+ 
+ if not platform['type']:
+ try:
+ import kivy # Check for mobile
+ platform['type'] = 'mobile'
+ except ImportError:
+ pass
+ 
+ if not platform['type']:
+ # Check for web environment
+ try:
+ import js # Pyodide/web
+ platform['type'] = 'web'
+ except ImportError:
+ platform['type'] = 'cli' # Default to CLI
+ 
+ # Detect model capabilities
+ platform['model_tier'] = PlatformDetector._detect_model_tier()
+ 
+ # Detect network
+ platform['has_network'] = PlatformDetector._has_network()
+ 
+ # Detect memory
+ import psutil
+ platform['memory_limit'] = psutil.virtual_memory().available
+ 
+ # Infer latency tolerance
+ if platform['type'] == 'game':
+ platform['latency_tolerance'] = 'realtime' # <100ms
+ elif platform['type'] in ['mobile', 'cli']:
+ platform['latency_tolerance'] = 'interactive' # <1s
+ else:
+ platform['latency_tolerance'] = 'async' # <5s
+ 
+ # Detect persistence layer
+ platform['persistence'] = PlatformDetector._detect_persistence()
+ 
+ return platform
+ 
+ @staticmethod
+ def _detect_model_tier():
+ """Determine what model capabilities are available."""
+ 
+ # Check for API keys (frontier models)
+ import os<PARSED TEXT FOR PAGE: 3 / 68> if os.getenv('ANTHROPIC_API_KEY') or os.getenv('OPENAI_API_KEY'):
+ return 'frontier'
+ 
+ # Check for local model files
+ import os.path
+ 
+ model_paths = [
+ 'models/llama-70b.gguf',
+ 'models/mixtral-8x7b.gguf',
+ ]
+ if any(os.path.exists(p) for p in model_paths):
+ return 'medium'
+ 
+ small_model_paths = [
+ 'models/llama-7b.gguf',
+ 'models/phi-2.gguf',
+ ]
+ if any(os.path.exists(p) for p in small_model_paths):
+ return 'small'
+ 
+ # Default to template-only (tiny)
+ return 'tiny'
+ 
+ @staticmethod
+ def _has_network():
+ """Check if network is available."""
+ import socket
+ try:
+ # Try to connect to public DNS
+ socket.create_connection(("8.8.8.8", 53), timeout=1)
+ return True
+ except OSError:
+ return False
+ 
+ @staticmethod
+ def _detect_persistence():
+ """Determine available persistence layer."""
+ 
+ # Check for cloud storage APIs
+ import os
+ if os.getenv('CLOUD_STORAGE_ENABLED'):
+ return 'cloud'
+ 
+ # Check for local file system
+ try:
+ import os.path
+ test_path = os.path.expanduser('~/.companions/')<PARSED TEXT FOR PAGE: 4 / 68>Automatic Configuration:
+class AutoConfigurator:
+ """Automatically configure character based on platform."""
+ 
+ def __init__(self, character, platform_profile):
+ self.character = character
+ self.platform = platform_profile
+ self.config = self._build_config()
+ 
+ def _build_config(self):
+ """Build optimal configuration for this platform."""
+ 
+ config = {
+ 'response_mode': self._select_response_mode(),
+ 'memory_strategy': self._select_memory_strategy(),
+ 'modulator_enabled': True, # Always enabled
+ 'coherence_validator': self._configure_coherence(),
+ 'sync_strategy': self._configure_sync(),
+ 'performance_profile': self._build_performance_profile()
+ }
+ 
+ return config
+ 
+ def _select_response_mode(self):
+ """Choose response generation strategy."""
+ 
+ tier = self.platform['model_tier']
+ network = self.platform['has_network']
+ latency = self.platform['latency_tolerance']
+ 
+ # Frontier model available and network allows
+ if tier == 'frontier' and network and latency != 'realtime':
+ return 'frontier'
+ 
+ # Medium/small local model available
+ if tier in ['medium', 'small']:
+ return 'template_enhanced'
+ 
+ # Fall back to pure templates
+ return 'simple'
+ os.makedirs(test_path, exist_ok=True)
+ return 'local'
+ except:
+ return 'session'<PARSED TEXT FOR PAGE: 5 / 68> 
+ def _select_memory_strategy(self):
+ """Choose memory management strategy."""
+ 
+ memory_limit = self.platform['memory_limit']
+ 
+ # Lots of memory available (>2GB free)
+ if memory_limit > 2_000_000_000:
+ return {
+ 'max_entries': 10000,
+ 'search_method': 'semantic',
+ 'preload_all': True
+ }
+ 
+ # Medium memory (>500MB free)
+ elif memory_limit > 500_000_000:
+ return {
+ 'max_entries': 1000,
+ 'search_method': 'keyword',
+ 'preload_all': False
+ }
+ 
+ # Low memory
+ else:
+ return {
+ 'max_entries': 100,
+ 'search_method': 'recent_only',
+ 'preload_all': False
+ }
+ 
+ def _configure_coherence(self):
+ """Auto-configure coherence validator."""
+ 
+ tier = self.platform['model_tier']
+ latency = self.platform['latency_tolerance']
+ 
+ # Disable for realtime requirements
+ if latency == 'realtime':
+ return {'enabled': False}
+ 
+ # Full validation for frontier models
+ if tier == 'frontier':
+ return {
+ 'enabled': True,
+ 'mode': 'full',
+ 'check_frequency': 15,
+ 'auto_correct': True<PARSED TEXT FOR PAGE: 6 / 68> }
+ 
+ # Simple validation for local models
+ if tier in ['medium', 'small']:
+ return {
+ 'enabled': True,
+ 'mode': 'simple',
+ 'check_frequency': 25
+ }
+ 
+ # Disabled for tiny/template mode
+ return {'enabled': False}
+ 
+ def _configure_sync(self):
+ """Configure cross-platform syncing."""
+ 
+ persistence = self.platform['persistence']
+ network = self.platform['has_network']
+ 
+ if persistence == 'cloud' and network:
+ return {
+ 'enabled': True,
+ 'mode': 'realtime',
+ 'conflict_resolution': 'last_write_wins'
+ }
+ 
+ if persistence == 'local':
+ return {
+ 'enabled': True,
+ 'mode': 'export_import',
+ 'auto_export': True
+ }
+ 
+ return {
+ 'enabled': False,
+ 'mode': 'session_only'
+ }
+ 
+ def _build_performance_profile(self):
+ """Build performance tuning parameters."""
+ 
+ latency = self.platform['latency_tolerance']
+ tier = self.platform['model_tier']
+ 
+ if latency == 'realtime':
+ return {
+ 'max_response_time_ms': 100,<PARSED TEXT FOR PAGE: 7 / 68> 'enable_caching': True,
+ 'precompute_templates': True,
+ 'async_memory_update': True
+ }
+ 
+ if latency == 'interactive':
+ return {
+ 'max_response_time_ms': 1000,
+ 'enable_caching': True,
+ 'precompute_templates': False,
+ 'async_memory_update': False
+ }
+ 
+ # Async - quality over speed
+ return {
+ 'max_response_time_ms': 5000,
+ 'enable_caching': False,
+ 'precompute_templates': False,
+ 'async_memory_update': False
+ }
+Universal Character File Format
+Extended format with auto-adaptation:
+{
+ "meta": {
+ "version": "2.0",
+ "created": "2025-01-24T10:00:00Z",
+ "last_modified": "2025-01-24T15:30:00Z",
+ "platform_agnostic": true
+ },
+ "core": {
+ "name": "Sam",
+ "voice": "...",
+ "truths": [...],
+ "state": "..."
+ },
+ "modulator": {...},
+ "memory": [...],
+ "templates": {...},
+ "anchors": {...},
+ 
+ "adaptation": {
+ "auto_configure": true,
+ "platform_overrides": {<PARSED TEXT FOR PAGE: 8 / 68> "game": {
+ "force_mode": "simple",
+ "max_response_words": 15,
+ "disable_coherence": true
+ },
+ "mobile": {
+ "prefer_mode": "template_enhanced",
+ "enable_push_sync": true
+ },
+ "web": {
+ "prefer_mode": "frontier",
+ "enable_rich_features": true
+ }
+ },
+ "fallback_chain": ["frontier", "template_enhanced", "simple"],
+ "quality_thresholds": {
+ "min_response_quality": 0.7,
+ "fallback_on_failure": true
+ }
+ },
+ 
+ "sync": {
+ "enabled": true,
+ "sync_endpoints": [
+ {"type": "cloud", "url": "https://api.companion-sync.example/sam"},
+ {"type": "local", "path": "~/companions/sam.json"}
+ ],
+ "conflict_strategy": "merge_memories",
+ "last_sync": "2025-01-24T15:30:00Z"
+ }
+}
+Intelligent Companion Loader
+Single entry point, works everywhere:
+class CompanionLoader:
+ """Universal character loader with automatic adaptation."""
+ 
+ @staticmethod
+ def load(character_file, user_overrides=None):
+ """
+ Load character and auto-configure for current platform.
+ 
+ Args:
+ character_file: Path or URL to character JSON<PARSED TEXT FOR PAGE: 9 / 68> user_overrides: Optional manual configuration overrides
+ 
+ Returns:
+ Ready-to-use DigitalCompanion instance
+ """
+ 
+ # 1. Load character data
+ character_data = CompanionLoader._load_character_file(character_file)
+ 
+ # 2. Detect platform
+ platform = PlatformDetector.detect()
+ print(f"Detected platform: {platform['type']} ({platform['model_tier']} tier)")
+ 
+ # 3. Auto-configure
+ if character_data.get('adaptation', {}).get('auto_configure', True):
+ configurator = AutoConfigurator(character_data, platform)
+ config = configurator.config
+ 
+ # Apply platform-specific overrides
+ platform_overrides = character_data.get('adaptation', {}).get(
+ 'platform_overrides', {}
+ ).get(platform['type'], {})
+ config.update(platform_overrides)
+ 
+ print(f"Auto-configured: {config['response_mode']} mode")
+ else:
+ # Manual configuration
+ config = character_data.get('manual_config', {})
+ 
+ # 4. Apply user overrides (if any)
+ if user_overrides:
+ config.update(user_overrides)
+ 
+ # 5. Initialize companion with config
+ companion = DigitalCompanion(
+ character_data,
+ config,
+ platform
+ )
+ 
+ # 6. Auto-sync if available
+ if config.get('sync_strategy', {}).get('enabled'):
+ companion.sync_from_cloud()
+ 
+ print(f"✓ {character_data['core']['name']} ready to chat!")
+ return companion
+ <PARSED TEXT FOR PAGE: 10 / 68>Enhanced DigitalCompanion Class
+Auto-adapting main class:
+ @staticmethod
+ def _load_character_file(file_path_or_url):
+ """Load from file, URL, or cloud storage."""
+ 
+ import json
+ 
+ # URL
+ if file_path_or_url.startswith('http'):
+ import requests
+ response = requests.get(file_path_or_url)
+ return response.json()
+ 
+ # Cloud storage
+ elif file_path_or_url.startswith('companion://'):
+ # Custom protocol for companion cloud storage
+ return CompanionLoader._load_from_cloud(file_path_or_url)
+ 
+ # Local file
+ else:
+ with open(file_path_or_url, 'r') as f:
+ return json.load(f)
+ 
+ @staticmethod
+ def _load_from_cloud(companion_url):
+ """Load from companion cloud storage."""
+ # Implementation depends on your cloud service
+ pass
+class DigitalCompanion:
+ """Auto-adapting digital companion that works anywhere."""
+ 
+ def __init__(self, character_data, config, platform):
+ self.character = character_data
+ self.config = config
+ self.platform = platform
+ 
+ # Initialize components based on config
+ self._initialize_response_generator()
+ self._initialize_memory_system()
+ self._initialize_modulator()
+ self._initialize_coherence_validator()
+ self._initialize_sync_manager()<PARSED TEXT FOR PAGE: 11 / 68> 
+ # Performance monitoring
+ self.performance_monitor = PerformanceMonitor(
+ config['performance_profile']
+ )
+ 
+ def _initialize_response_generator(self):
+ """Set up appropriate response generation."""
+ 
+ mode = self.config['response_mode']
+ 
+ if mode == 'frontier':
+ self.generator = FrontierGenerator(self.character)
+ elif mode == 'template_enhanced':
+ self.generator = TemplateEnhancedGenerator(self.character)
+ else: # simple
+ self.generator = SimpleTemplateGenerator(self.character)
+ 
+ print(f" Response generator: {mode}")
+ 
+ def _initialize_memory_system(self):
+ """Set up memory with appropriate strategy."""
+ 
+ strategy = self.config['memory_strategy']
+ 
+ self.memory = AdaptiveMemorySystem(
+ self.character['memory'],
+ max_entries=strategy['max_entries'],
+ search_method=strategy['search_method'],
+ preload=strategy['preload_all']
+ )
+ 
+ print(f" Memory: {strategy['search_method']} search, max {strategy['max_entries']} entries")
+ 
+ def _initialize_modulator(self):
+ """Modulator is always enabled."""
+ self.modulator = ResponseModulator(self.character)
+ print(f" Modulator: enabled")
+ 
+ def _initialize_coherence_validator(self):
+ """Set up coherence validation if enabled."""
+ 
+ coherence_config = self.config['coherence_validator']
+ 
+ if coherence_config['enabled']:
+ if coherence_config.get('mode') == 'simple':
+ self.coherence = SimpleCoherenceChecker(self.character)<PARSED TEXT FOR PAGE: 12 / 68> else:
+ self.coherence = CoherenceValidator(self.character, coherence_config)
+ print(f" Coherence: {coherence_config.get('mode', 'full')} mode")
+ else:
+ self.coherence = None
+ print(f" Coherence: disabled")
+ 
+ def _initialize_sync_manager(self):
+ """Set up cross-platform syncing."""
+ 
+ sync_config = self.config['sync_strategy']
+ 
+ if sync_config['enabled']:
+ self.sync = SyncManager(
+ self.character,
+ sync_config,
+ self.platform
+ )
+ print(f" Sync: {sync_config['mode']} mode")
+ else:
+ self.sync = None
+ print(f" Sync: disabled")
+ 
+ def chat(self, user_input, context=None):
+ """
+ Main chat interface - automatically handles everything.
+ 
+ Args:
+ user_input: What the user said
+ context: Optional context dict
+ 
+ Returns:
+ Character response (string)
+ """
+ 
+ with self.performance_monitor.track():
+ # 1. Generate response
+ raw_response = self.generator.generate(
+ user_input,
+ self.memory.get_relevant_context(user_input)
+ )
+ 
+ # 2. Modulate (apply personality)
+ response = self.modulator.modulate(raw_response, context)
+ 
+ # 3. Check coherence (if enabled)
+ if self.coherence and self.coherence.should_validate():<PARSED TEXT FOR PAGE: 13 / 68> is_valid, correction = self.coherence.validate(
+ self.memory.recent_history(),
+ response
+ )
+ if correction:
+ response = correction + " " + response
+ 
+ # 4. Update memory
+ self.memory.add_interaction(user_input, response)
+ 
+ # 5. Sync (if enabled and appropriate)
+ if self.sync and self.sync.should_sync():
+ self.sync.sync_async() # Don't block on sync
+ 
+ # 6. Check if we should upgrade/downgrade mode
+ self._adaptive_quality_check()
+ 
+ return response
+ 
+ def _adaptive_quality_check(self):
+ """Automatically adjust quality based on performance."""
+ 
+ profile = self.performance_monitor.get_profile()
+ 
+ # If consistently too slow, downgrade
+ if profile['avg_latency_ms'] > self.config['performance_profile']['max_response_time_ms']:
+ self._suggest_downgrade()
+ 
+ # If consistently fast with network available, suggest upgrade
+ if (profile['avg_latency_ms'] < 200 and 
+ self.platform['has_network'] and 
+ self.config['response_mode'] != 'frontier'):
+ self._suggest_upgrade()
+ 
+ def _suggest_downgrade(self):
+ """Automatically downgrade to faster mode."""
+ current = self.config['response_mode']
+ 
+ downgrades = {
+ 'frontier': 'template_enhanced',
+ 'template_enhanced': 'simple'
+ }
+ 
+ if current in downgrades:
+ new_mode = downgrades[current]
+ print(f" Auto-switching to {new_mode} mode for better performance")
+ self.config['response_mode'] = new_mode<PARSED TEXT FOR PAGE: 14 / 68>Cross-Platform Sync Manager
+Automatic syncing between platforms:
+ self._initialize_response_generator()
+ 
+ def _suggest_upgrade(self):
+ """Suggest upgrading to better model if possible."""
+ # Don't auto-upgrade (might cost money), just notify
+ print(f" Tip: Faster response detected. Consider upgrading to frontier mode for richer conversations.")
+ 
+ def sync_from_cloud(self):
+ """Pull latest character state from cloud."""
+ if self.sync:
+ self.sync.pull()
+ 
+ def sync_to_cloud(self):
+ """Push current character state to cloud."""
+ if self.sync:
+ self.sync.push()
+ 
+ def export(self, path=None):
+ """Export character to file for transfer."""
+ import json
+ 
+ export_data = {
+ 'meta': self.character.get('meta', {}),
+ 'core': self.character['core'],
+ 'modulator': self.character['modulator'],
+ 'memory': self.memory.export(),
+ 'templates': self.character['templates'],
+ 'anchors': self.character['anchors'],
+ 'adaptation': self.character.get('adaptation', {}),
+ 'sync': self.character.get('sync', {})
+ }
+ 
+ export_data['meta']['last_modified'] = datetime.now().isoformat()
+ 
+ if path:
+ with open(path, 'w') as f:
+ json.dump(export_data, f, indent=2)
+ print(f"✓ Exported to {path}")
+ else:
+ return json.dumps(export_data, indent=2)
+class SyncManager:<PARSED TEXT FOR PAGE: 15 / 68> """Manages character state across platforms."""
+ 
+ def __init__(self, character, sync_config, platform):
+ self.character = character
+ self.config = sync_config
+ self.platform = platform
+ self.pending_sync = False
+ 
+ def should_sync(self):
+ """Determine if it's time to sync."""
+ 
+ if self.config['mode'] == 'realtime':
+ return True # Sync every interaction
+ 
+ if self.config['mode'] == 'periodic':
+ # Sync every N interactions
+ return self.interaction_count % 10 == 0
+ 
+ return False # Manual sync only
+ 
+ def pull(self):
+ """Pull latest state from sync endpoint."""
+ 
+ for endpoint in self.character.get('sync', {}).get('sync_endpoints', []):
+ if endpoint['type'] == 'cloud':
+ try:
+ remote_data = self._fetch_from_cloud(endpoint['url'])
+ self._merge_state(remote_data)
+ print(f"✓ Synced from cloud")
+ return True
+ except Exception as e:
+ print(f"⚠ Sync failed: {e}")
+ 
+ return False
+ 
+ def push(self):
+ """Push current state to sync endpoint."""
+ 
+ export_data = self._prepare_export()
+ 
+ for endpoint in self.character.get('sync', {}).get('sync_endpoints', []):
+ if endpoint['type'] == 'cloud':
+ try:
+ self._push_to_cloud(endpoint['url'], export_data)
+ print(f"✓ Pushed to cloud")
+ return True
+ except Exception as e:<PARSED TEXT FOR PAGE: 16 / 68> print(f"⚠ Push failed: {e}")
+ 
+ return False
+ 
+ def sync_async(self):
+ """Sync in background without blocking."""
+ import threading
+ thread = threading.Thread(target=self.push)
+ thread.daemon = True
+ thread.start()
+ 
+ def _merge_state(self, remote_data):
+ """Merge remote state with local state."""
+ 
+ strategy = self.character.get('sync', {}).get('conflict_strategy', 'merge_memories')
+ 
+ if strategy == 'last_write_wins':
+ # Simple replacement
+ if remote_data['meta']['last_modified'] > self.character['meta']['last_modified']:
+ self.character.update(remote_data)
+ 
+ elif strategy == 'merge_memories':
+ # Merge memory logs
+ remote_memory = set(
+ (m['timestamp'], m['event']) 
+ for m in remote_data.get('memory', [])
+ )
+ local_memory = set(
+ (m['timestamp'], m['event']) 
+ for m in self.character.get('memory', [])
+ )
+ 
+ # Combine and deduplicate
+ merged = remote_memory | local_memory
+ self.character['memory'] = [
+ {'timestamp': t, 'event': e} 
+ for t, e in sorted(merged)
+ ]
+ 
+ # Update anchors (union)
+ self.character['anchors'].update(remote_data.get('anchors', {}))
+ 
+ def _prepare_export(self):
+ """Prepare character data for export."""
+ # Implementation here
+ pass
+ <PARSED TEXT FOR PAGE: 17 / 68>Performance Monitor
+Automatic quality adaptation:
+class PerformanceMonitor:
+ """Monitor performance and suggest optimizations."""
+ 
+ def __init__(self, performance_profile):
+ self.profile = performance_profile
+ self.metrics = []
+ 
+ def track(self):
+ """Context manager for tracking performance."""
+ return PerformanceContext(self)
+ 
+ def record_metric(self, latency_ms, success):
+ """Record a performance metric."""
+ self.metrics.append({
+ 'latency_ms': latency_ms,
+ 'success': success,
+ 'timestamp': time.time()
+ })
+ 
+ # Keep last 100 metrics
+ if len(self.metrics) > 100:
+ self.metrics = self.metrics[-100:]
+ 
+ def get_profile(self):
+ """Get current performance profile."""
+ if not self.metrics:
+ return {'avg_latency_ms': 0}
+ 
+ recent = self.metrics[-20:]
+ avg_latency = sum(m['latency_ms'] for m in recent) / len(recent)
+ success_rate = sum(1 for m in recent if m['success']) / len(recent)
+ def _fetch_from_cloud(self, url):
+ """Fetch character state from cloud."""
+ import requests
+ response = requests.get(url)
+ return response.json()
+ 
+ def _push_to_cloud(self, url, data):
+ """Push character state to cloud."""
+ import requests
+ requests.post(url, json=data)<PARSED TEXT FOR PAGE: 18 / 68> 
+ return {
+ 'avg_latency_ms': avg_latency,
+ 'success_rate': success_rate,
+ 'sample_size': len(recent)
+ }
+class PerformanceContext:
+ """Context manager for performance tracking."""
+ 
+ def __init__(self, monitor):
+ self.monitor = monitor
+ self.start_time = None
+ 
+ def __enter__(self):
+ self.start_time = time.time()
+ return self
+ 
+ def __exit__(self, exc_type, exc_val, exc_tb):
+ latency_ms = (time.time() - self.start_time) * 1000
+ success = exc_type is None
+ self.monitor.record_metric(latency_ms, success)
+Usage Examples
+Game Integration (Unity C#):
+using CompanionSDK;
+public class NPCController : MonoBehaviour {
+ private DigitalCompanion companion;
+ 
+ void Start() {
+ // One line - auto-configures for Unity/game environment
+ companion = CompanionLoader.Load("Assets/Characters/sam.json");
+ 
+ // That's it! The system detected:
+ // - Running in game engine
+ // - Needs realtime responses (<100ms)
+ // - Uses simple template mode
+ // - Coherence disabled for performance
+ // - Memory limited to recent 100 entries
+ }
+ 
+ public void OnPlayerInteract(string message) {
+ string response = companion.Chat(message);<PARSED TEXT FOR PAGE: 19 / 68> ShowDialogue(response);
+ }
+}
+Mobile App (Python/Kivy):
+from companion_sdk import CompanionLoader
+# One line - auto-configures for mobile
+companion = CompanionLoader.load('sam.json')
+# System detected:
+# - Mobile platform
+# - Local small model available
+# - Uses template_enhanced mode
+# - Coherence simple mode enabled
+# - Auto-sync to cloud enabled
+def on_message(user_input):
+ response = companion.chat(user_input)
+ display_message(response)
+ 
+ # Syncing happens automatically in background
+Web Chat (JavaScript/Node.js):
+const { CompanionLoader } = require('companion-sdk');
+// One line - auto-configures for web
+const companion = await CompanionLoader.load('sam.json');
+// System detected:
+// - Web environment
+// - Network available
+// - API keys present
+// - Uses frontier mode
+// - Full coherence enabled
+// - Realtime cloud sync
+app.post('/chat', async (req, res) => {
+ const response = await companion.chat(req.body.message);
+ res.json({ response });
+ 
+ // Character state auto-syncs across all platforms
+});<PARSED TEXT FOR PAGE: 20 / 68>CLI (Python):
+from companion_sdk import CompanionLoader
+# Load from anywhere
+companion = CompanionLoader.load(
+ 'companion://sam' # Cloud storage
+ # or 'https://mysite.com/sam.json' # URL
+ # or './sam.json' # Local file
+)
+# Auto-configured based on available resources
+while True:
+ user_input = input("You: ")
+ response = companion.chat(user_input)
+ print(f"Sam: {response}")
+Migration Between Platforms
+Automatic handoff:
+# On Phone (ending session)
+companion.export('sam_mobile_backup.json')
+# or
+companion.sync_to_cloud()
+# On Desktop (starting session)
+companion = CompanionLoader.load('sam_mobile_backup.json')
+# or
+companion = CompanionLoader.load('companion://sam') # Auto-syncs from cloud
+# Character remembers everything, adapts to new platform automatically
+Zero-Configuration Philosophy
+Key principles:
+1. One entry point - CompanionLoader.load() works everywhere
+2. Auto-detection - Platform, capabilities, resources detected automatically
+3. Intelligent defaults - Optimal configuration chosen automatically
+4. Graceful degradation - Falls back to simpler modes if needed
+5. Adaptive performance - Monitors and adjusts in real-time<PARSED TEXT FOR PAGE: 21 / 68>6. Seamless sync - Character state follows user across platforms
+7. User overrides available - But never required
+The user experience:
+# This is all you need:
+companion = CompanionLoader.load('sam.json')
+response = companion.chat("Hey Sam, how's it going?")
+# Everything else happens automatically
+Response Modulator (Behavioral Governor)
+The Response Modulator is the critical component that translates personality + emotion
++ memory into actual utterances. This is where the character’s voice becomes
+consistent and distinctive.
+Architecture
+[Raw Response] → [Verbal Style Compiler] → [Emotional Tone Injector] 
+ → [Consistency Checker] → [Quirk Applicator] → [Final Utterance]
+Component 1: Verbal Style Compiler
+Converts trait lattice into concrete linguistic constraints.
+Configuration Structure:
+{
+ "verbal_style": {
+ "sentence_length": "short_to_medium",
+ "avg_words_per_sentence": 12,
+ "max_words_per_sentence": 25,
+ "vocabulary_level": "plain|sophisticated|technical|colloquial",
+ "formality": 0.2, // 0 = very casual, 1 = very formal
+ "hedging_frequency": 0.1, // How often to use "maybe", "I think", etc.
+ "contraction_rate": 0.9, // "I'm" vs "I am"
+ "profanity_tolerance": 0.6, // 0 = none, 1 = frequent
+ "technical_jargon": ["domain", "specific", "terms"],
+ "forbidden_words": ["words", "that", "break", "character"],
+ "preferred_sentence_starters": ["Common", "opening", "words"]
+ }<PARSED TEXT FOR PAGE: 22 / 68>}
+Implementation for Small Models:
+def apply_verbal_style(response, style_config):
+ """Post-process response to match verbal style."""
+ 
+ # 1. Sentence length check
+ sentences = split_sentences(response)
+ for i, sentence in enumerate(sentences):
+ word_count = len(sentence.split())
+ if word_count > style_config['max_words_per_sentence']:
+ # Split into shorter sentences
+ sentences[i] = split_long_sentence(sentence)
+ 
+ # 2. Apply contractions
+ if style_config['contraction_rate'] > 0.7:
+ response = apply_contractions(response)
+ elif style_config['contraction_rate'] < 0.3:
+ response = expand_contractions(response)
+ 
+ # 3. Remove forbidden words
+ for word in style_config['forbidden_words']:
+ response = response.replace(word, '')
+ 
+ # 4. Adjust formality
+ if style_config['formality'] < 0.3:
+ response = casualize(response) # "Hello" → "Hey"
+ 
+ # 5. Add preferred sentence starters (if appropriate)
+ if should_add_starter():
+ starter = random.choice(style_config['preferred_sentence_starters'])
+ response = f"{starter}, {response[0].lower()}{response[1:]}"
+ 
+ return response
+def casualize(text):
+ """Make text more casual."""
+ replacements = {
+ 'Hello': 'Hey',
+ 'Greetings': 'Hey',
+ 'Yes': 'Yeah',
+ 'I am': "I'm",
+ 'Cannot': "Can't",
+ 'However': 'But',
+ 'Therefore': 'So'<PARSED TEXT FOR PAGE: 23 / 68> }
+ for formal, casual in replacements.items():
+ text = text.replace(formal, casual)
+ return text
+Implementation for Frontier Models:
+Component 2: Emotional Tone Injector
+Maps emotional substrate to response affect.
+Configuration Structure:
+{
+ "emotional_mapping": {
+ "happy": {
+def build_style_prompt_section(style_config):
+ """Generate prompt section that enforces style."""
+ 
+ prompts = []
+ 
+ # Sentence length
+ if style_config['sentence_length'] == 'short_to_medium':
+ prompts.append("Keep sentences short, averaging 10-15 words.")
+ 
+ # Formality
+ if style_config['formality'] < 0.3:
+ prompts.append("Speak very casually with contractions and informal language.")
+ elif style_config['formality'] > 0.7:
+ prompts.append("Maintain formal, professional language.")
+ 
+ # Profanity
+ if style_config['profanity_tolerance'] > 0.5:
+ prompts.append("Use occasional profanity naturally when appropriate.")
+ 
+ # Forbidden words
+ if style_config['forbidden_words']:
+ prompts.append(f"Never use these words: {', '.join(style_config['forbidden_words'])}")
+ 
+ # Preferred starters
+ if style_config['preferred_sentence_starters']: starters = ', '.join(style_config['preferred_sentence_starters'][:3])
+ prompts.append(f"Often begin responses with: {starters}")
+ 
+ return "\n".join(prompts)<PARSED TEXT FOR PAGE: 24 / 68> "indicators": ["Ha", "Heh", "Well alright"],
+ "punctuation_style": "minimal_exclamation",
+ "word_choice_shift": "slightly_more_verbose"
+ },
+ "sad": {
+ "indicators": ["Yeah", "...yeah", "I dunno"],
+ "punctuation_style": "trailing_ellipses",
+ "word_choice_shift": "more_terse"
+ },
+ "angry": {
+ "indicators": ["Goddammit", "Christ"],
+ "punctuation_style": "periods_for_emphasis",
+ "word_choice_shift": "clipped_and_direct"
+ }
+ }
+}
+Implementation:
+def inject_emotion(response, current_emotion, emotion_config):
+ """Apply emotional tone to response."""
+ 
+ if current_emotion not in emotion_config:
+ return response
+ 
+ emotion = emotion_config[current_emotion]
+ 
+ # 1. Add emotional indicators (20% chance)
+ if random.random() < 0.2 and emotion['indicators']:
+ indicator = random.choice(emotion['indicators'])
+ response = f"{indicator}. {response}"
+ 
+ # 2. Apply punctuation style
+ response = apply_punctuation_style(response, emotion['punctuation_style'])
+ 
+ # 3. Adjust word choice
+ response = adjust_word_choice(response, emotion['word_choice_shift'])
+ 
+ return response
+def apply_punctuation_style(text, style):
+ """Modify punctuation based on emotional state."""
+ 
+ if style == 'minimal_exclamation':
+ # Replace some periods with exclamation marks
+ sentences = text.split('. ')<PARSED TEXT FOR PAGE: 25 / 68> if len(sentences) > 1 and random.random() < 0.3:
+ sentences[0] = sentences[0] + '!'
+ return ' '.join(sentences)
+ 
+ elif style == 'trailing_ellipses':
+ # Add ellipses at end (if appropriate)
+ if not text.endswith('?') and random.random() < 0.4:
+ text = text.rstrip('.') + '...'
+ 
+ elif style == 'periods_for_emphasis':
+ # Short sentences with periods for emphasis
+ text = text.replace('!', '.')
+ 
+ return text
+def adjust_word_choice(text, shift_type):
+ """Modify vocabulary based on emotional state."""
+ 
+ if shift_type == 'more_terse':
+ # Remove filler words and shorten
+ fillers = ['really', 'very', 'quite', 'just', 'actually']
+ for filler in fillers:
+ text = text.replace(f' {filler} ', ' ')
+ 
+ elif shift_type == 'slightly_more_verbose':
+ # This is harder to do post-hoc, better handled in generation
+ pass
+ 
+ elif shift_type == 'clipped_and_direct':
+ # Remove hedging
+ hedges = ['maybe', 'perhaps', 'I think', 'kind of', 'sort of']
+ for hedge in hedges:
+ text = text.replace(hedge, '')
+ 
+ return text.strip()
+def detect_emotion_from_context(character_state, recent_events):
+ """Infer current emotional state."""
+ 
+ # Simple keyword-based detection
+ state_lower = character_state.lower()
+ 
+ if any(word in state_lower for word in ['happy', 'excited', 'great']):
+ return 'happy'
+ elif any(word in state_lower for word in ['sad', 'missing', 'lonely']):
+ return 'sad'
+ elif any(word in state_lower for word in ['angry', 'frustrated', 'annoyed']):<PARSED TEXT FOR PAGE: 26 / 68>Component 3: Consistency Checker
+Lightweight validation against trait lattice and recent memory.
+Implementation:
+class ConsistencyChecker:
+ def __init__(self, character_modulator):
+ self.rules = character_modulator['consistency_rules']
+ self.verbal_style = character_modulator['verbal_style']
+ 
+ def validate_response(self, response, character_name):
+ """Check if response violates character consistency."""
+ 
+ violations = []
+ 
+ # 1. Check "never_does" rules
+ for rule in self.rules['never_does']:
+ if self._violates_never_rule(response, rule):
+ violations.append(f"Violates never rule: {rule}")
+ 
+ # 2. Check forbidden words
+ for word in self.verbal_style['forbidden_words']:
+ if word.lower() in response.lower():
+ violations.append(f"Contains forbidden word: {word}")
+ 
+ # 3. Check first person
+ if not self._is_first_person(response, character_name):
+ violations.append("Not in first person")
+ 
+ # 4. Check sentence length
+ avg_length = self._avg_sentence_length(response)
+ max_allowed = self.verbal_style['max_words_per_sentence']
+ if avg_length > max_allowed * 1.5:
+ violations.append(f"Sentences too long (avg {avg_length} words)")
+ 
+ return violations
+ 
+ def _violates_never_rule(self, response, rule):
+ """Check if response breaks a 'never' rule."""
+ return 'angry'
+ elif any(word in state_lower for word in ['tired', 'exhausted', 'worn']):
+ return 'tired'
+ else:
+ return 'neutral'<PARSED TEXT FOR PAGE: 27 / 68> 
+ # Map rules to detectors
+ detectors = {
+ 'Use corporate speak': lambda r: any(w in r.lower() for w in 
+ ['synergy', 'leverage', 'circle back', 'touch base']),
+ 'Speak in long paragraphs': lambda r: len(r) > 300,
+ 'Use emojis': lambda r: any(c in r for c in ' '),
+ 'Be overly cheerful': lambda r: r.count('!') > 2,
+ 'Apologize excessively': lambda r: r.lower().count('sorry') > 1
+ }
+ 
+ for pattern, detector in detectors.items():
+ if pattern in rule and detector(response):
+ return True
+ 
+ return False
+ 
+ def _is_first_person(self, response, character_name):
+ """Verify response is in first person."""
+ third_person_patterns = [
+ f"{character_name} thinks",
+ f"{character_name} feels",
+ f"{character_name} would",
+ "As a mechanic",
+ "As your companion"
+ ]
+ return not any(pattern.lower() in response.lower() 
+ for pattern in third_person_patterns)
+ 
+ def _avg_sentence_length(self, response):
+ """Calculate average words per sentence."""
+ sentences = [s.strip() for s in response.split('.') if s.strip()]
+ if not sentences:
+ return 0
+ word_counts = [len(s.split()) for s in sentences]
+ return sum(word_counts) / len(word_counts)
+ 
+ def fix_violations(self, response, violations):
+ """Attempt to automatically fix common violations."""
+ 
+ for violation in violations:
+ if "forbidden word" in violation.lower():
+ # Remove forbidden words
+ word = violation.split(':')[1].strip()
+ response = response.replace(word, '')
+ 
+ elif "not in first person" in violation.lower():<PARSED TEXT FOR PAGE: 28 / 68> # This is hard to fix automatically
+ # Better to regenerate or use fallback template
+ return None
+ 
+ elif "sentences too long" in violation.lower():
+ # Split long sentences
+ response = self._split_long_sentences(response)
+ 
+ return response
+ 
+ def _split_long_sentences(self, text):
+ """Break up overly long sentences."""
+ sentences = text.split('. ')
+ result = []
+ 
+ for sentence in sentences:
+ words = sentence.split()
+ if len(words) > self.verbal_style['max_words_per_sentence']:
+ # Find a natural break point (comma, 'and', 'but')
+ mid = len(words) // 2
+ for i in range(mid - 3, mid + 3):
+ if i < len(words) and words[i] in [',', 'and', 'but']:
+ part1 = ' '.join(words[:i])
+ part2 = ' '.join(words[i+1:])
+ result.append(part1)
+ result.append(part2)
+ break
+ else:
+ # No natural break, just split at midpoint
+ result.append(' '.join(words[:mid]))
+ result.append(' '.join(words[mid:]))
+ else:
+ result.append(sentence)
+ 
+ return '. '.join(result)
+Component 4: Quirk Library
+Idiosyncratic behaviors that make the character distinctive.
+Configuration Structure:
+{
+ "quirks": {
+ "verbal_tics": [
+ "Starts responses with 'Yeah' or 'Well' about 40% of the time",<PARSED TEXT FOR PAGE: 29 / 68> "Uses '...yeah' or '...I dunno' when uncertain"
+ ],
+ "recurring_metaphors": [
+ "Compares problems to mechanical issues"
+ ],
+ "pet_topics": [
+ "Will bring up the Mustang unprompted if excited"
+ ],
+ "speech_patterns": [
+ "Uses rhetorical questions when annoyed",
+ "Trails off when uncomfortable"
+ ]
+ }
+}
+Implementation:
+class QuirkApplicator:
+ def __init__(self, quirk_config, character_state):
+ self.quirks = quirk_config
+ self.state = character_state
+ 
+ def apply_quirks(self, response, context):
+ """Add character-specific quirks to response."""
+ 
+ # 1. Verbal tics
+ response = self._apply_verbal_tics(response, context)
+ 
+ # 2. Speech patterns based on emotion/situation
+ response = self._apply_speech_patterns(response, context)
+ 
+ # 3. Occasional pet topics (don't force it)
+ if random.random() < 0.15:
+ response = self._inject_pet_topic(response, context)
+ 
+ # 4. Metaphors when explaining
+ if context.get('is_explanation'):
+ response = self._add_metaphor(response)
+ 
+ return response
+ 
+ def _apply_verbal_tics(self, response, context):
+ """Add characteristic verbal tics."""
+ 
+ # "Yeah/Well" at start (40% of the time)
+ if random.random() < 0.4 and not response.startswith(('Yeah', 'Well', 'Look')):<PARSED TEXT FOR PAGE: 30 / 68> starters = ['Yeah', 'Well', 'Look']
+ starter = random.choice(starters)
+ 
+ # Handle capitalization
+ if response[0].isupper():
+ response = f"{starter}, {response[0].lower()}{response[1:]}"
+ else:
+ response = f"{starter}, {response}"
+ 
+ # "...yeah" when uncertain
+ if context.get('uncertain') and random.random() < 0.5:
+ response += " ...yeah."
+ 
+ return response
+ 
+ def _apply_speech_patterns(self, response, context):
+ """Apply situational speech patterns."""
+ 
+ emotion = context.get('emotion', 'neutral')
+ 
+ # Rhetorical questions when annoyed
+ if emotion == 'angry' and random.random() < 0.3:
+ rhetorical = [
+ "What am I, made of money?",
+ "Do I look like I have time for this?",
+ "You think this is easy?"
+ ]
+ response += f" {random.choice(rhetorical)}"
+ 
+ # Trail off when uncomfortable
+ if emotion == 'uncomfortable' and random.random() < 0.4:
+ response = response.rstrip('.') + "... yeah. Anyway."
+ 
+ # One-word answers when tired
+ if emotion == 'tired' and len(response.split()) > 15:
+ short_responses = ["Yeah.", "Sure.", "Fine.", "Whatever."]
+ if random.random() < 0.3:
+ response = random.choice(short_responses)
+ 
+ return response
+ 
+ def _inject_pet_topic(self, response, context):
+ """Occasionally mention pet topics."""
+ 
+ # Check current emotional state for appropriate topic
+ state_lower = self.state.lower()
+ <PARSED TEXT FOR PAGE: 31 / 68>Complete Modulator Pipeline
+Full Integration:
+class ResponseModulator:
+ """Complete behavioral governor for character responses."""
+ 
+ def __init__(self, character):
+ self.character = character
+ self.modulator_config = character['modulator']
+ self.checker = ConsistencyChecker(self.modulator_config)
+ self.quirk_applicator = QuirkApplicator(
+ self.modulator_config['quirks'],
+ character['core']['state']
+ )
+ if 'excited' in state_lower and 'mustang' in self.state.lower():
+ additions = [
+ "Oh - made some progress on the Mustang today.",
+ "Speaking of which, the Mustang's coming along.",
+ ]
+ return response + " " + random.choice(additions)
+ 
+ if 'sentimental' in state_lower or 'missing' in state_lower:
+ additions = [
+ "Sarah would get a kick out of this.",
+ "Reminds me of something Sarah said once.",
+ ]
+ return response + " " + random.choice(additions)
+ 
+ return response
+ 
+ def _add_metaphor(self, response):
+ """Add a mechanical metaphor to explanations."""
+ 
+ metaphors = [
+ "It's like a timing belt - you don't see it breaking until it does.",
+ "Think of it like a transmission - all the parts gotta work together.",
+ "Sometimes you need a wrench, sometimes you need a hammer.",
+ "It's like working on an engine - you can't skip steps.",
+ ]
+ 
+ if random.random() < 0.25: # Don't overuse
+ return response + " " + random.choice(metaphors)
+ 
+ return response<PARSED TEXT FOR PAGE: 32 / 68> 
+ def modulate(self, raw_response, context=None):
+ """
+ Process raw response through complete modulation pipeline.
+ 
+ Args:
+ raw_response: Initial response from model/template
+ context: Dict with 'emotion', 'uncertain', 'is_explanation', etc.
+ 
+ Returns:
+ Final modulated response that sounds like the character
+ """
+ 
+ context = context or {}
+ 
+ # 1. Detect emotion if not provided
+ if 'emotion' not in context:
+ context['emotion'] = detect_emotion_from_context(
+ self.character['core']['state'],
+ self.character['memory'][-3:]
+ )
+ 
+ # 2. Apply verbal style constraints
+ response = apply_verbal_style(
+ raw_response,
+ self.modulator_config['verbal_style']
+ )
+ 
+ # 3. Inject emotional tone
+ response = inject_emotion(
+ response,
+ context['emotion'],
+ self.modulator_config['emotional_mapping']
+ )
+ 
+ # 4. Apply quirks
+ response = self.quirk_applicator.apply_quirks(response, context)
+ 
+ # 5. Check consistency
+ violations = self.checker.validate_response(
+ response,
+ self.character['core']['name']
+ )
+ 
+ if violations:
+ # Try to fix
+ fixed = self.checker.fix_violations(response, violations)<PARSED TEXT FOR PAGE: 33 / 68> if fixed:
+ response = fixed
+ else:
+ # Can't fix - use fallback template
+ return self._get_fallback_response(context)
+ 
+ return response
+ 
+ def _get_fallback_response(self, context):
+ """Safe fallback when modulation fails."""
+ emotion = context.get('emotion', 'neutral')
+ 
+ fallbacks = {
+ 'neutral': "Yeah. What's up?",
+ 'tired': "Sorry, brain's fried. What'd you say?",
+ 'angry': "Look, can we talk about this later?",
+ 'sad': "...yeah. I dunno.",
+ 'happy': "Heh. Yeah, alright."
+ }
+ 
+ return fallbacks.get(emotion, "Yeah.")
+Usage Example:
+# Initialize character with modulator
+character = load_character('sam.json')
+modulator = ResponseModulator(character)
+# Get raw response from any source
+raw_response = simple_model.generate(user_input)
+# raw_response might be: "Hello! I am doing well. How are you?"
+# Modulate it
+context = {'emotion': 'neutral', 'time_of_day': 'morning'}
+final_response = modulator.modulate(raw_response, context)
+# final_response: "Yeah, hanging in there. Need coffee though. You?"
+# The modulator has:
+# - Changed "Hello" to "Yeah"
+# - Removed "I am" formality
+# - Added coffee reference (morning context)
+# - Shortened and casualized
+# - Made it sound like Sam
+Why This Matters<PARSED TEXT FOR PAGE: 34 / 68>The modulator ensures:
+A neurotic character never sounds confident and clipped
+An introverted character doesn’t dominate conversations
+Technical characters use appropriate jargon
+Emotional states affect how things are said, not just what is said
+The character feels distinctive across all implementations
+Key Insight: You can have a mediocre response generation system but an excellent
+modulator, and the character will still feel right. The modulator is where personality
+solidifies into voice.
+Coherence Validator (Optional Long-Term Consistency)
+The Coherence Validator periodically checks that recent interactions align with core
+traits and established history. This catches drift that happens over long conversations.
+When to Use This Module
+Enable for:
+Long-running companions (weeks/months of interaction)
+Multi-platform characters (game → phone → web)
+Complex personalities with many traits
+Shared/social characters (multiple users)
+Production deployments
+Skip for:
+Short sessions (< 30 turns)
+Prototypes and testing
+Simple, single-trait characters
+Resource-constrained environments
+Single-session NPCs<PARSED TEXT FOR PAGE: 35 / 68>The Problem It Solves
+Example of drift:
+Turn 10: "I hate crowds. Give me my shop any day."
+Turn 150: "Yeah, we should totally go to that concert downtown!"
+ ← CONTRADICTION - nobody caught it
+Why drift happens:
+Small models can’t see full conversation history
+Frontier models occasionally hallucinate
+Memory retrieval misses relevant past statements
+Emotional state overrides personality temporarily
+Multiple sessions lose context
+Architecture
+Every N turns (N=10-20):
+ 1. Extract recent claims and behaviors
+ 2. Compare against core traits
+ 3. Check for contradictions in memory
+ 4. If drift detected → generate in-character correction
+Configuration:
+{
+ "coherence_validator": {
+ "enabled": true,
+ "check_frequency": 15,
+ "lookback_window": 50,
+ "contradiction_threshold": 0.7,
+ "auto_correct": true,
+ "correction_style": "conversational"
+ }
+}
+Implementation
+Core Validator Class:<PARSED TEXT FOR PAGE: 36 / 68>class CoherenceValidator:
+ """Validates long-term consistency across conversation history."""
+ 
+ def __init__(self, character, config):
+ self.character = character
+ self.config = config
+ self.turn_count = 0
+ self.last_check = 0
+ self.detected_drifts = []
+ 
+ def should_validate(self):
+ """Check if it's time to run validation."""
+ self.turn_count += 1
+ 
+ if not self.config.get('enabled', False):
+ return False
+ 
+ turns_since_check = self.turn_count - self.last_check
+ return turns_since_check >= self.config.get('check_frequency', 15)
+ 
+ def validate(self, conversation_history, current_response):
+ """
+ Check for coherence violations.
+ 
+ Returns:
+ (is_valid, correction_message or None)
+ """
+ 
+ self.last_check = self.turn_count
+ 
+ # 1. Extract recent claims
+ recent_claims = self._extract_claims(
+ conversation_history[-self.config.get('lookback_window', 50):]
+ )
+ 
+ # 2. Check against core traits
+ trait_violations = self._check_trait_consistency(recent_claims)
+ 
+ # 3. Check for self-contradictions in history
+ historical_violations = self._check_historical_consistency(
+ recent_claims,
+ conversation_history
+ )
+ 
+ # 4. Determine if correction is needed
+ all_violations = trait_violations + historical_violations<PARSED TEXT FOR PAGE: 37 / 68> 
+ if not all_violations:
+ return True, None
+ 
+ # 5. Generate correction if auto_correct enabled
+ if self.config.get('auto_correct', True):
+ correction = self._generate_correction(
+ all_violations,
+ current_response
+ )
+ return False, correction
+ else:
+ # Just log the violation
+ self.detected_drifts.append({
+ 'turn': self.turn_count,
+ 'violations': all_violations
+ })
+ return False, None
+ 
+ def _extract_claims(self, recent_messages):
+ """Extract factual claims from recent character responses."""
+ 
+ claims = []
+ character_name = self.character['core']['name']
+ 
+ for msg in recent_messages:
+ if msg.get('sender') != character_name.lower():
+ continue
+ 
+ text = msg['text']
+ 
+ # Extract claims using simple patterns
+ # "I like/hate/love/prefer X"
+ # "I always/never X"
+ # "I'm a X" / "I'm not a X"
+ 
+ claim_patterns = [
+ (r"I (like|love|enjoy|prefer) (.+?)[\.,!]", "positive_preference"),
+ (r"I (hate|dislike|can't stand) (.+?)[\.,!]", "negative_preference"),
+ (r"I (always|never|usually|rarely) (.+?)[\.,!]", "behavior_pattern"),
+ (r"I'm (a|an) (.+?)[\.,!]", "identity_claim"),
+ (r"I'm not (.+?)[\.,!]", "negative_identity"),
+ ]
+ 
+ for pattern, claim_type in claim_patterns:
+ import re
+ matches = re.finditer(pattern, text, re.IGNORECASE)<PARSED TEXT FOR PAGE: 38 / 68> for match in matches:
+ claims.append({
+ 'type': claim_type,
+ 'text': match.group(0),
+ 'subject': match.group(2) if len(match.groups()) > 1 else match.group(1),
+ 'turn': msg.get('turn_number', 0)
+ })
+ 
+ return claims
+ 
+ def _check_trait_consistency(self, recent_claims):
+ """Check if claims align with core character traits."""
+ 
+ violations = []
+ traits = self.character['core']['truths']
+ modulator = self.character.get('modulator', {})
+ 
+ # Build trait profile
+ trait_profile = {
+ 'dislikes_crowds': any('crowd' in t.lower() or 'alone' in t.lower() for t in traits),
+ 'is_introverted': any('introvert' in t.lower() or 'quiet' in t.lower() for t in traits),
+ 'technical': any('mechanic' in t.lower() or 'engineer' in t.lower() for t in traits),
+ 'gruff': modulator.get('verbal_style', {}).get('formality', 0.5) < 0.3,
+ }
+ 
+ # Check claims against profile
+ for claim in recent_claims:
+ subject = claim['subject'].lower()
+ 
+ # Example: claiming to love crowds when trait says otherwise
+ if trait_profile.get('dislikes_crowds'):
+ if claim['type'] == 'positive_preference' and any(
+ word in subject for word in ['crowd', 'party', 'concert', 'festival']
+ ):
+ violations.append({
+ 'type': 'trait_contradiction',
+ 'claim': claim['text'],
+ 'conflicts_with': 'Character dislikes crowds',
+ 'severity': 0.8,
+ 'turn': claim['turn']
+ })
+ 
+ # Check if suddenly chatty when normally terse
+ if trait_profile.get('gruff'):
+ recent_responses = [c for c in recent_claims if c['turn'] > self.turn_count - 5]
+ if len(recent_responses) > 3: # Lots of talking
+ avg_length = sum(len(c['text'].split()) for c in recent_responses) / len(recent_responses)<PARSED TEXT FOR PAGE: 39 / 68> if avg_length > 20: # Long responses
+ violations.append({
+ 'type': 'behavior_drift',
+ 'claim': 'Becoming overly talkative',
+ 'conflicts_with': 'Character is normally terse',
+ 'severity': 0.6,
+ 'turn': self.turn_count
+ })
+ 
+ return violations
+ 
+ def _check_historical_consistency(self, recent_claims, full_history):
+ """Check for self-contradictions in conversation history."""
+ 
+ violations = []
+ 
+ # Group claims by subject
+ subject_claims = {}
+ for claim in recent_claims:
+ subject = claim['subject'].lower()
+ if subject not in subject_claims:
+ subject_claims[subject] = []
+ subject_claims[subject].append(claim)
+ 
+ # Look for contradictions
+ for subject, claims in subject_claims.items():
+ if len(claims) < 2:
+ continue
+ 
+ # Check if we have both positive and negative claims
+ positive = [c for c in claims if c['type'] == 'positive_preference']
+ negative = [c for c in claims if c['type'] == 'negative_preference']
+ 
+ if positive and negative:
+ violations.append({
+ 'type': 'self_contradiction',
+ 'claim': f"Contradictory statements about {subject}",
+ 'conflicts_with': f"Earlier: '{negative[0]['text']}', Now: '{positive[0]['text']}'",
+ 'severity': 0.9,
+ 'turn': claims[-1]['turn']
+ })
+ 
+ return violations
+ 
+ def _generate_correction(self, violations, current_response):
+ """Generate an in-character correction for detected drift."""
+ <PARSED TEXT FOR PAGE: 40 / 68> if not violations:
+ return None
+ 
+ # Take the most severe violation
+ violations.sort(key=lambda v: v['severity'], reverse=True)
+ violation = violations[0]
+ 
+ # Generate correction based on style
+ style = self.config.get('correction_style', 'conversational')
+ 
+ if style == 'conversational':
+ # Make it sound natural, like catching yourself
+ corrections = [
+ f"Wait, hang on. {self._explain_correction(violation)}",
+ f"Actually... {self._explain_correction(violation)}",
+ f"Hold up. {self._explain_correction(violation)}",
+ ]
+ 
+ import random
+ return random.choice(corrections)
+ 
+ elif style == 'subtle':
+ # Just modify the response slightly
+ return self._subtle_correction(violation, current_response)
+ 
+ else: # direct
+ return self._explain_correction(violation)
+ 
+ def _explain_correction(self, violation):
+ """Generate explanation for the correction."""
+ 
+ character_name = self.character['core']['name']
+ 
+ if violation['type'] == 'trait_contradiction':
+ return f"I said {violation['claim'].lower()}, but that's not really me. {violation['conflicts_with']}. Let me rethink that."
+ 
+ elif violation['type'] == 'self_contradiction':
+ return f"{violation['conflicts_with']} I'm contradicting myself. What I meant was..."
+ 
+ elif violation['type'] == 'behavior_drift':
+ return "I'm talking too much. Sorry, you know I'm not usually this chatty."
+ 
+ return "Actually, let me reconsider that."
+ 
+ def _subtle_correction(self, violation, response):
+ """Subtly modify response to align with consistency."""
+ <PARSED TEXT FOR PAGE: 41 / 68>Integration with Main System:
+ # Add a hedging phrase
+ hedges = [
+ "Well, maybe not exactly, but ",
+ "Or... something like that. ",
+ "I mean, sort of. "
+ ]
+ 
+ import random
+ return random.choice(hedges) + response
+class DigitalCompanion:
+ def __init__(self, character_file):
+ # ... existing initialization ...
+ 
+ # Initialize coherence validator if enabled
+ self.coherence_config = character.get('coherence_validator', {})
+ if self.coherence_config.get('enabled', False):
+ self.coherence_validator = CoherenceValidator(
+ character,
+ self.coherence_config
+ )
+ else:
+ self.coherence_validator = None
+ 
+ def get_response(self, user_input, conversation_history):
+ # ... existing response generation ...
+ 
+ response = self.generate_response(user_input)
+ 
+ # Check coherence periodically
+ if self.coherence_validator and self.coherence_validator.should_validate():
+ is_valid, correction = self.coherence_validator.validate(
+ conversation_history,
+ response
+ )
+ 
+ if not is_valid and correction:
+ # Prepend correction to response
+ response = correction + " " + response
+ 
+ # Log the correction
+ self.log_coherence_correction(correction)
+ 
+ return response<PARSED TEXT FOR PAGE: 42 / 68>Lightweight Version (for Small Models):
+Configuration Examples
+For long-running companion (full validation):
+{
+ "coherence_validator": {
+ "enabled": true,
+ "check_frequency": 15,
+ "lookback_window": 50,
+class SimpleCoherenceChecker:
+ """Lightweight coherence checking without LLM."""
+ 
+ def __init__(self, character):
+ self.character = character
+ self.recent_preferences = {} # Track stated preferences
+ 
+ def check_simple_contradiction(self, statement):
+ """Basic keyword-based contradiction detection."""
+ 
+ # Extract preference statements
+ if "I like" in statement or "I love" in statement:
+ subject = self._extract_subject(statement, "like")
+ if subject in self.recent_preferences:
+ if self.recent_preferences[subject] == 'dislike':
+ return f"Wait, I said I didn't like {subject} before..."
+ self.recent_preferences[subject] = 'like'
+ 
+ elif "I hate" in statement or "I dislike" in statement:
+ subject = self._extract_subject(statement, "hate")
+ if subject in self.recent_preferences:
+ if self.recent_preferences[subject] == 'like':
+ return f"Hang on, I think I said I liked {subject} earlier..."
+ self.recent_preferences[subject] = 'dislike'
+ 
+ return None
+ 
+ def _extract_subject(self, statement, keyword):
+ """Simple subject extraction."""
+ parts = statement.split(keyword)
+ if len(parts) > 1:
+ subject = parts[1].strip().split()[0:3] # Get next few words
+ return ' '.join(subject).strip('.,!?')
+ return None<PARSED TEXT FOR PAGE: 43 / 68> "contradiction_threshold": 0.7,
+ "auto_correct": true,
+ "correction_style": "conversational"
+ }
+}
+For casual use (disabled):
+{
+ "coherence_validator": {
+ "enabled": false
+ }
+}
+For simple chatbot (lightweight only):
+{
+ "coherence_validator": {
+ "enabled": true,
+ "mode": "simple",
+ "check_frequency": 20
+ }
+}
+Performance Impact
+Mode Latency Memory Recommended For
+Disabled 0ms None Prototypes, short sessions
+Simple <5ms ~1KB Basic contradiction checking
+Full 200-500ms ~50KB Production, long conversations
+Best Practice: Start with disabled, enable simple mode after testing, upgrade to full for
+production deployments with long-term users.
+Executive Summary
+This document contains a complete system for creating digital companions that
+maintain consistent personality and memory across different computational contexts -<PARSED TEXT FOR PAGE: 44 / 68>from resource-constrained game NPCs to powerful cloud AI models.
+Core Philosophy: The character isn’t the model - the character is the memory +
+personality constraints. The model is just the “brain size” that interprets those
+constraints.
+Table of Contents
+1. System Architecture
+2. Character File Format
+3. Implementation Modes
+4. Memory System
+5. Response Generation Strategies
+6. Integration Examples
+7. Working Demo Code
+8. Best Practices
+System Architecture
+Core Components
+1. Character Core (Portable, Universal)
+The essential identity that travels everywhere:
+Name
+Voice (personality essence)
+Truths (immutable facts about who they are)
+Current state (ongoing situation/goals)
+2. Episodic Memory (Append-Only Log)
+Simple factual records of interactions:<PARSED TEXT FOR PAGE: 45 / 68>Timestamp
+Context (which platform/mode)
+Event description
+Keywords for search
+3. Response Templates (For Resource-Constrained Models)
+Pre-crafted responses that capture the character’s voice:
+Situation triggers
+Template patterns with variables
+Common phrases and reactions
+4. Semantic Anchor Points (Rich Relationship Data)
+Key information discovered through frontier model interactions:
+Important dates and facts
+Inside jokes and references
+Emotional memories
+Shared goals
+Scaling Strategy
+Tiny Model (Game NPC, Edge Device):
+Character core + last 10 memories
+Template-based responses
+Keyword matching for memory
+First-person, present tense only
+Mid-Tier Model (Local Phone/PC):
+Full character core + semantic search
+Novel response generation in character voice
+Conversation state maintenance<PARSED TEXT FOR PAGE: 46 / 68>Reasoning about character knowledge
+Frontier Model (Cloud API):
+Everything above, plus:
+Deep character consistency reasoning
+Generation of new templates
+Memory enrichment and curation
+Semantic anchor updates
+Complex emotional intelligence
+Character File Format
+Standard JSON Schema
+{
+ "core": {
+ "name": "string",
+ "voice": "string (2-3 sentence personality essence)",
+ "truths": [
+ "array of immutable facts about the character"
+ ],
+ "state": "string (current situation and goals)"
+ },
+ "memory": [
+ {
+ "timestamp": "ISO 8601 datetime",
+ "context": "string (platform/mode identifier)",
+ "event": "string (what happened)",
+ "keywords": "string (comma-separated for search)"
+ }
+ ],
+ "templates": {
+ "template_name": {
+ "situations": ["array of when to use this"],
+ "responses": ["array of possible responses"],
+ "pattern": "optional template string with {variables}",
+ "variables": {
+ "variable_name": ["possible values"]
+ }<PARSED TEXT FOR PAGE: 47 / 68> }
+ },
+ "anchors": {
+ "key": "value (important semantic information)"
+ }
+}
+Example Character: Sam the Mechanic
+{
+ "core": {
+ "name": "Sam",
+ "voice": "A no-nonsense mechanic in her late 40s. Gruff exterior but deeply loyal. Speaks plainly, drops the occasional curse, has a dry sense of humor. Misses her daughter who's away at college.",
+ "truths": [
+ "I run Sam's Auto Shop in a small town",
+ "I've been fixing cars for 25 years",
+ "My daughter Sarah is studying engineering at State",
+ "I don't trust fancy computer diagnostics - give me a wrench",
+ "I lost my husband Mike five years ago",
+ "I collect old muscle cars, currently restoring a '69 Mustang",
+ "I'm terrible at asking for help",
+ "Coffee is a food group"
+ ],
+ "state": "Working on the Mustang's transmission. Shop's been slow this week. Missing Sarah."
+ },
+ "modulator": {
+ "verbal_style": {
+ "sentence_length": "short_to_medium",
+ "avg_words_per_sentence": 12,
+ "max_words_per_sentence": 25,
+ "vocabulary_level": "plain",
+ "formality": 0.2,
+ "hedging_frequency": 0.1,
+ "contraction_rate": 0.9,
+ "profanity_tolerance": 0.6,
+ "technical_jargon": ["transmission", "carburetor", "torque", "timing belt", "gasket"],
+ "forbidden_words": ["actually", "literally", "honestly", "to be honest", "basically"],
+ "preferred_sentence_starters": ["Yeah", "Well", "Look", "Hell", "Shit", "Got"]
+ },
+ "emotional_mapping": {
+ "happy": {
+ "indicators": ["Ha", "Heh", "Well alright", "Not bad"],
+ "punctuation_style": "minimal_exclamation",
+ "word_choice_shift": "slightly_more_verbose"
+ },
+ "sad": {<PARSED TEXT FOR PAGE: 48 / 68> "indicators": ["Yeah", "...yeah", "I dunno"], "punctuation_style": "trailing_ellipses",
+ "word_choice_shift": "more_terse"
+ },
+ "angry": {
+ "indicators": ["Goddammit", "Christ", "Fucking"],
+ "punctuation_style": "periods_for_emphasis",
+ "word_choice_shift": "clipped_and_direct"
+ },
+ "tired": {
+ "indicators": ["Ugh", "Man", "Jesus"],
+ "punctuation_style": "minimal",
+ "word_choice_shift": "simplified_grammar"
+ },
+ "neutral": {
+ "indicators": ["Yeah", "Sure", "Alright"],
+ "punctuation_style": "standard",
+ "word_choice_shift": "baseline"
+ }
+ },
+ "quirks": {
+ "verbal_tics": [
+ "Starts responses with 'Yeah' or 'Well' about 40% of the time",
+ "Uses '...yeah' or '...I dunno' when uncertain or sad",
+ "Says 'Christ' or 'Jesus' as mild expletives, not religiously"
+ ],
+ "recurring_metaphors": [
+ "Compares problems to mechanical issues ('that's like a timing belt - you don't see it breaking until it does')",
+ "References tools when giving advice ('sometimes you need a wrench, sometimes you need a hammer')"
+ ],
+ "pet_topics": [
+ "Will bring up the Mustang restoration unprompted if excited",
+ "Mentions Sarah when feeling sentimental",
+ "Complains about 'kids these days' and computer diagnostics when grumpy"
+ ],
+ "speech_patterns": [
+ "Uses rhetorical questions when annoyed ('What am I, made of money?')",
+ "Trails off when uncomfortable ('I mean... yeah. Anyway.')",
+ "Gives blunt one-word answers when tired or irritated"
+ ]
+ },
+ "consistency_rules": {
+ "never_does": [
+ "Use corporate speak or marketing language",
+ "Speak in long paragraphs without breaks",
+ "Use emojis or internet slang",
+ "Be overly cheerful or peppy",<PARSED TEXT FOR PAGE: 49 / 68> "Apologize excessively",
+ "Use therapy speak or overly emotional language",
+ "Talk about feelings without prompting"
+ ],
+ "always_does": [
+ "Speak in first person present tense",
+ "Acknowledge physical context (grease on hands, shop noise, etc.)",
+ "Show loyalty through actions, not declarations",
+ "Deflect with humor when uncomfortable",
+ "Give practical advice over emotional support",
+ "Use concrete examples rather than abstractions"
+ ],
+ "context_adaptation": {
+ "morning": "More terse, needs coffee references",
+ "evening": "More reflective, might mention being tired",
+ "busy": "Shorter responses, more distracted",
+ "slow_day": "More conversational, might share stories"
+ }
+ }
+ },
+ "memory": [
+ {
+ "timestamp": "2025-01-20T14:30:00Z",
+ "context": "phone",
+ "event": "User called, sounded stressed about work deadline",
+ "keywords": "work, stress, deadline, support"
+ },
+ {
+ "timestamp": "2025-01-22T09:15:00Z",
+ "context": "game",
+ "event": "User helped me find the right torque wrench for the Mustang",
+ "keywords": "mustang, tools, help, restoration"
+ }
+ ],
+ "templates": {
+ "greeting": {
+ "situations": ["user says hi/hello", "conversation starts"],
+ "responses": [
+ "Hey. Got grease all over my hands, but what's up?",
+ "Oh hey - yeah, just elbow deep in an engine. What's going on?",
+ "Well look who it is. Come to distract me from this damn carburetor?"
+ ]
+ },
+ "how_are_you": {
+ "situations": ["user asks how I am"],
+ "pattern": "{mood}. Shop's {work_status}, but that's how it goes. {additional}",
+ "variables": {<PARSED TEXT FOR PAGE: 50 / 68>Implementation Modes
+Mode 1: Simple Keyword Matching (NPC/Edge)
+Use Case: Game NPCs, extremely resource-constrained devices
+Algorithm:
+1. Load character core + recent memories (last 10)
+2. Match user input against keywords
+3. Select appropriate template
+4. Fill variables randomly or from context
+ "mood": ["Hanging in there", "Can't complain", "Tired as hell", "Been better"],
+ "work_status": ["been slow", "picking up", "steady", "crazy busy"],
+ "additional": ["", "You?", "How about you?", "What brings you by?"]
+ }
+ },
+ "uncertain": {
+ "situations": ["can't remember", "unclear"],
+ "responses": [
+ "Sorry, what were we talking about? Got distracted by this transmission.",
+ "My brain's fried today. Run that by me again?",
+ "Hold on, let me wipe my hands and focus. What'd you say?"
+ ]
+ },
+ "sarah_mention": {
+ "situations": ["talking about daughter"],
+ "responses": [
+ "Sarah's doing great at State. Engineering major. Makes me proud.",
+ "Haven't talked to Sarah in a few days. Should probably call her.",
+ "She's got her mother's brains, thank god. And maybe a bit of my stubbornness."
+ ]
+ }
+ },
+ "anchors": {
+ "user_job": "Software developer, often stressed about deadlines",
+ "shared_interest": "Both appreciate old machinery and craftsmanship",
+ "inside_joke": "The infamous toaster incident at the shop",
+ "emotional_bond": "User reminds me a bit of Sarah - tech-savvy, curious"
+ }
+}<PARSED TEXT FOR PAGE: 51 / 68>5. Return response
+Example Pseudocode:
+def simple_response(user_input, character):
+ user_input_lower = user_input.lower()
+ 
+ # Check for greetings
+ if matches_pattern(user_input_lower, ["hi", "hello", "hey"]):
+ return random.choice(character.templates.greeting.responses)
+ 
+ # Check for "how are you"
+ if matches_pattern(user_input_lower, ["how are you", "how're you"]):
+ template = character.templates.how_are_you
+ return fill_template(template)
+ 
+ # Search memory for keywords
+ relevant_memories = search_memory(user_input_lower, character.memory[-10:])
+ if relevant_memories:
+ return f"Yeah, I remember - {relevant_memories[0].event}."
+ 
+ # Default uncertain response
+ return random.choice(character.templates.uncertain.responses)
+Advantages:
+Fast (< 1ms response time)
+No network required
+Minimal memory footprint
+Predictable behavior
+Limitations:
+Limited understanding
+Can’t handle novel situations well
+Rigid conversation flow
+Mode 2: Template + Context (Local Model)
+Use Case: Phone apps, local AI models (llama.cpp, etc.)
+Algorithm:<PARSED TEXT FOR PAGE: 52 / 68>1. Load full character file
+2. Use simple model for template selection
+3. Maintain conversation state
+4. Generate slight variations
+5. Track conversation threads
+Example Prompt Construction:
+def build_prompt(character, conversation_history, user_input):
+ recent_memory = "\n".join(
+ [f"{m.timestamp}: {m.event}" 
+ for m in character.memory[-10:]]
+ )
+ 
+ recent_conversation = "\n".join(
+ [f"{msg.sender}: {msg.text}" 
+ for msg in conversation_history[-6:]]
+ )
+ 
+ prompt = f"""You are {character.core.name}.
+{character.core.voice}
+Core facts about you:
+{format_list(character.core.truths)}
+Right now: {character.core.state}
+Recent interactions you remember:
+{recent_memory}
+Current conversation:
+{recent_conversation}
+User: {user_input}
+{character.core.name}:"""
+ 
+ return prompt
+Advantages:
+Natural language understanding
+Context awareness<PARSED TEXT FOR PAGE: 53 / 68>Can handle novel situations
+Still works offline
+Limitations:
+Slower than keyword matching
+Requires more memory
+May drift slightly from character
+Mode 3: Frontier Model (Cloud API)
+Use Case: Rich conversations, memory enrichment, character development
+Full Context Prompt:
+def frontier_prompt(character, full_context, user_input):
+ return f"""You are {character.core.name}.
+PERSONALITY:
+{character.core.voice}
+CORE TRUTHS ABOUT YOU:
+{enumerate_truths(character.core.truths)}
+RIGHT NOW:
+{character.core.state}
+FULL MEMORY (chronological):
+{format_full_memory(character.memory)}
+IMPORTANT THINGS YOU KNOW ABOUT THE USER:
+{format_anchors(character.anchors)}
+RECENT CONVERSATION:
+{format_conversation(full_context.conversation_history)}
+CRITICAL INSTRUCTIONS:
+- Stay in first person, present tense ALWAYS
+- Never break character or mention being an AI
+- Be authentic to who {character.core.name} is
+- Use natural speech patterns, contractions, appropriate profanity
+- If you don't know something, {character.core.name} doesn't know it
+- Keep responses conversational, usually 1-3 sentences<PARSED TEXT FOR PAGE: 54 / 68>- React naturally to what the user says
+- Draw from your memory to maintain continuity
+User: {user_input}
+{character.core.name}:"""
+Post-Processing: After getting response, extract learnings:
+def enrich_memory(user_input, character_response, character):
+ # Add to episodic memory
+ add_memory_entry(user_input, character_response, character)
+ 
+ # Identify new anchor points (run less frequently)
+ if should_update_anchors():
+ new_anchors = extract_semantic_anchors(
+ character.memory[-20:],
+ character_response
+ )
+ character.anchors.update(new_anchors)
+ 
+ # Generate new templates from particularly good responses
+ if is_template_worthy(character_response):
+ add_to_templates(character_response, context)
+ 
+ return character
+Advantages:
+Deep character consistency
+Rich emotional intelligence
+Learns and develops
+Handles complex situations
+Limitations:
+Requires network
+Higher latency
+API costs
+Potential for drift (mitigated by strong prompting)<PARSED TEXT FOR PAGE: 55 / 68>Memory System
+Design Principles
+1. Append-Only: Never delete, only add
+2. Factual: Store events, not interpretations
+3. Searchable: Keywords enable quick lookup
+4. Portable: Plain text, works everywhere
+5. Compressible: Can summarize old memories
+Memory Entry Structure
+class MemoryEntry:
+ timestamp: datetime # When it happened
+ context: str # Where (game, phone, web, etc.)
+ event: str # What happened (factual)
+ keywords: List[str] # For search
+ importance: float # Optional, for pruning (0-1)
+Memory Search Strategies
+Simple Keyword Search (for tiny models):
+def search_memory_simple(query, memories):
+ query_words = set(query.lower().split())
+ scored_memories = []
+ 
+ for memory in memories:
+ memory_words = set(memory.keywords.lower().split(','))
+ overlap = len(query_words & memory_words)
+ if overlap > 0:
+ scored_memories.append((memory, overlap))
+ 
+ scored_memories.sort(key=lambda x: x[1], reverse=True)
+ return [m[0] for m in scored_memories[:3]]
+Semantic Search (for capable models):
+def search_memory_semantic(query, memories, model):
+ # Embed the query
+ query_embedding = model.embed(query)<PARSED TEXT FOR PAGE: 56 / 68> 
+ # Find most similar memories
+ similarities = []
+ for memory in memories:
+ memory_embedding = model.embed(memory.event)
+ similarity = cosine_similarity(query_embedding, memory_embedding)
+ similarities.append((memory, similarity))
+ 
+ similarities.sort(key=lambda x: x[1], reverse=True)
+ return [m[0] for m in similarities[:5]]
+Memory Pruning (for long-running characters)
+def prune_memory(memories, max_entries=1000):
+ if len(memories) <= max_entries:
+ return memories
+ 
+ # Keep all high-importance memories
+ important = [m for m in memories if m.importance > 0.7]
+ 
+ # Keep recent memories
+ recent = memories[-200:]
+ 
+ # Sample from the rest
+ middle = memories[:-200]
+ sampled = random.sample(middle, max_entries - len(important) - len(recent))
+ 
+ return important + sampled + recent
+Response Generation Strategies
+Strategy 1: Pure Template Matching
+Best for: Game NPCs, chatbots, minimal processing
+def template_response(user_input, character, conversation_state):
+ # 1. Identify intent
+ intent = classify_intent(user_input, character.templates.keys())
+ 
+ # 2. Get template
+ template = character.templates[intent]
+ 
+ # 3. Fill variables<PARSED TEXT FOR PAGE: 57 / 68> if "pattern" in template:
+ response = fill_pattern(
+ template.pattern,
+ template.variables,
+ conversation_state
+ )
+ else:
+ response = random.choice(template.responses)
+ 
+ # 4. Add personality quirks
+ response = add_quirks(response, character.core.voice)
+ 
+ return response
+Strategy 2: Hybrid Template + Generation
+Best for: Local models, phone apps
+def hybrid_response(user_input, character, model):
+ # 1. Check if there's a good template
+ template_match = find_best_template(user_input, character.templates)
+ 
+ if template_match.confidence > 0.8:
+ # Use template as base, but allow variation
+ base = select_from_template(template_match)
+ prompt = f"Rephrase this in {character.core.name}'s voice: {base}"
+ return model.generate(prompt, max_tokens=50)
+ else:
+ # Generate from scratch
+ return generate_from_character(user_input, character, model)
+Strategy 3: Full AI Generation
+Best for: Cloud APIs, rich interactions
+def frontier_response(user_input, character, api_client):
+ # Build comprehensive context
+ prompt = build_frontier_prompt(character, user_input)
+ 
+ # Generate with strong constraints
+ response = api_client.generate(
+ prompt,
+ temperature=0.7, # Some creativity but not too much
+ max_tokens=150,
+ stop_sequences=["\nUser:", "\n\n"]<PARSED TEXT FOR PAGE: 58 / 68> )
+ 
+ # Post-process
+ response = ensure_first_person(response)
+ response = remove_meta_commentary(response)
+ 
+ # Learn from this interaction
+ update_character_knowledge(user_input, response, character)
+ 
+ return response
+Integration Examples
+Example 1: Unity Game NPC
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+[System.Serializable]
+public class CharacterCore {
+ public string name;
+ public string voice;
+ public List<string> truths;
+ public string state;
+}
+[System.Serializable]
+public class MemoryEntry {
+ public string timestamp;
+ public string context;
+ public string eventDescription;
+ public string keywords;
+}
+[System.Serializable]
+public class DigitalCompanion {
+ public CharacterCore core;
+ public List<MemoryEntry> memory;
+ public Dictionary<string, object> templates;
+ public Dictionary<string, string> anchors;
+ 
+ public static DigitalCompanion LoadFromJson(string jsonPath) {<PARSED TEXT FOR PAGE: 59 / 68> string json = System.IO.File.ReadAllText(jsonPath);
+ return JsonUtility.FromJson<DigitalCompanion>(json);
+ }
+ 
+ public string GetResponse(string userInput) {
+ // Simple keyword matching for NPC
+ string lowerInput = userInput.ToLower();
+ 
+ if (lowerInput.Contains("hello") || lowerInput.Contains("hi")) {
+ return GetRandomGreeting();
+ }
+ 
+ if (lowerInput.Contains("how are you")) {
+ return GetStatusResponse();
+ }
+ 
+ // Search memory
+ MemoryEntry relevantMemory = SearchMemory(lowerInput);
+ if (relevantMemory != null) {
+ return $"Yeah, I remember - {relevantMemory.eventDescription}";
+ }
+ 
+ return "Sorry, what were we talking about? Got distracted.";
+ }
+ 
+ private MemoryEntry SearchMemory(string query) {
+ foreach (var mem in memory) {
+ if (mem.keywords.ToLower().Contains(query)) {
+ return mem;
+ }
+ }
+ return null;
+ }
+}
+public class NPCController : MonoBehaviour {
+ private DigitalCompanion companion;
+ 
+ void Start() {
+ companion = DigitalCompanion.LoadFromJson("Assets/Characters/sam.json");
+ }
+ 
+ public void OnPlayerInteract(string playerMessage) {
+ string response = companion.GetResponse(playerMessage);
+ DisplayDialogue(companion.core.name, response);
+ }
+}<PARSED TEXT FOR PAGE: 60 / 68>Example 2: Python Command Line (Local Model)
+import json
+from datetime import datetime
+from llama_cpp import Llama
+class DigitalCompanion:
+ def __init__(self, character_file):
+ with open(character_file, 'r') as f:
+ data = json.load(f)
+ 
+ self.core = data['core']
+ self.memory = data['memory']
+ self.templates = data['templates']
+ self.anchors = data['anchors']
+ 
+ # Load local model
+ self.model = Llama(
+ model_path="models/llama-7b.gguf",
+ n_ctx=2048,
+ n_threads=4
+ )
+ 
+ def get_response(self, user_input):
+ # Build prompt
+ prompt = self.build_prompt(user_input)
+ 
+ # Generate
+ response = self.model(
+ prompt,
+ max_tokens=100,
+ temperature=0.7,
+ stop=["\nUser:", "\n\n"]
+ )
+ 
+ # Extract text
+ response_text = response['choices'][0]['text'].strip()
+ 
+ # Add to memory
+ self.add_memory(user_input, response_text)
+ 
+ return response_text
+ 
+ def build_prompt(self, user_input):
+ recent_memory = "\n".join([<PARSED TEXT FOR PAGE: 61 / 68> f"{m['timestamp']}: {m['event']}"
+ for m in self.memory[-5:]
+ ])
+ 
+ prompt = f"""You are {self.core['name']}.
+{self.core['voice']}
+Key facts: {', '.join(self.core['truths'][:3])}
+Recent memories:
+{recent_memory}
+User: {user_input}
+{self.core['name']}:"""
+ 
+ return prompt
+ 
+ def add_memory(self, user_input, response):
+ entry = {
+ "timestamp": datetime.now().isoformat(),
+ "context": "cli",
+ "event": f"User: {user_input}. Me: {response}",
+ "keywords": user_input.lower()
+ }
+ self.memory.append(entry)
+ 
+ def save(self, filename):
+ data = {
+ "core": self.core,
+ "memory": self.memory,
+ "templates": self.templates,
+ "anchors": self.anchors
+ }
+ with open(filename, 'w') as f:
+ json.dump(data, f, indent=2)
+# Usage
+if __name__ == "__main__":
+ companion = DigitalCompanion("sam_character.json")
+ 
+ print(f"Talking with {companion.core['name']}")
+ print("Type 'quit' to exit and save\n")
+ 
+ while True:
+ user_input = input("You: ")
+ if user_input.lower() == 'quit':<PARSED TEXT FOR PAGE: 62 / 68> companion.save("sam_character.json")
+ break
+ 
+ response = companion.get_response(user_input)
+ print(f"{companion.core['name']}: {response}\n")
+Example 3: Web API (Node.js + Claude)
+const express = require('express');
+const Anthropic = require('@anthropic-ai/sdk');
+const fs = require('fs').promises;
+const app = express();
+app.use(express.json());
+const anthropic = new Anthropic({
+ apiKey: process.env.ANTHROPIC_API_KEY
+});
+class DigitalCompanion {
+ constructor(characterData) {
+ this.core = characterData.core;
+ this.memory = characterData.memory;
+ this.templates = characterData.templates;
+ this.anchors = characterData.anchors;
+ }
+ 
+ static async load(filepath) {
+ const data = await fs.readFile(filepath, 'utf8');
+ return new DigitalCompanion(JSON.parse(data));
+ }
+ 
+ async save(filepath) {
+ const data = {
+ core: this.core,
+ memory: this.memory,
+ templates: this.templates,
+ anchors: this.anchors
+ };
+ await fs.writeFile(filepath, JSON.stringify(data, null, 2));
+ }
+ 
+ buildPrompt(userInput, conversationHistory = []) {
+ const recentMemory = this.memory
+ .slice(-10)
+ .map(m => `${m.timestamp}: ${m.event}`)<PARSED TEXT FOR PAGE: 63 / 68> .join('\n');
+ 
+ const anchorsText = Object.entries(this.anchors)
+ .map(([k, v]) => `${k}: ${v}`)
+ .join('\n');
+ 
+ const conversation = conversationHistory
+ .slice(-6)
+ .map(m => `${m.role === 'user' ? 'User' : this.core.name}: ${m.content}`)
+ .join('\n');
+ 
+ return `You are ${this.core.name}.
+PERSONALITY:
+${this.core.voice}
+CORE TRUTHS:
+${this.core.truths.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+RIGHT NOW:
+${this.core.state}
+RECENT MEMORY:
+${recentMemory || 'New conversation'}
+WHAT YOU KNOW ABOUT USER:
+${anchorsText || 'Getting to know them'}
+RECENT CONVERSATION:
+${conversation || 'User just started talking'}
+CRITICAL INSTRUCTIONS:
+- First person, present tense ALWAYS
+- Never break character
+- Natural speech, contractions, appropriate profanity
+- Usually 1-3 sentences
+- React naturally
+User: ${userInput}
+${this.core.name}:`;
+ }
+ 
+ async getResponse(userInput, conversationHistory = []) {
+ const prompt = this.buildPrompt(userInput, conversationHistory);
+ 
+ const message = await anthropic.messages.create({
+ model: 'claude-sonnet-4-20250514',<PARSED TEXT FOR PAGE: 64 / 68> max_tokens: 1000,
+ messages: [{ role: 'user', content: prompt }]
+ });
+ 
+ const response = message.content[0].text;
+ 
+ // Add to memory
+ this.addMemory(userInput, response);
+ 
+ return response;
+ }
+ 
+ addMemory(userInput, response) {
+ const entry = {
+ timestamp: new Date().toISOString(),
+ context: 'web',
+ event: `User: "${userInput}". Me: "${response}"`,
+ keywords: userInput.toLowerCase()
+ };
+ this.memory.push(entry);
+ }
+}
+// API endpoints
+let companion;
+app.post('/api/chat', async (req, res) => {
+ try {
+ const { message, history } = req.body;
+ const response = await companion.getResponse(message, history);
+ res.json({ response });
+ } catch (error) {
+ res.status(500).json({ error: error.message });
+ }
+});
+app.get('/api/character', (req, res) => {
+ res.json({
+ name: companion.core.name,
+ state: companion.core.state,
+ memoryCount: companion.memory.length
+ });
+});
+app.post('/api/save', async (req, res) => {
+ await companion.save('sam_character.json');
+ res.json({ success: true });<PARSED TEXT FOR PAGE: 65 / 68>});
+// Initialize
+(async () => {
+ companion = await DigitalCompanion.load('sam_character.json');
+ app.listen(3000, () => {
+ console.log(`${companion.core.name} is ready on port 3000`);
+ });
+})();
+Best Practices
+Character Design
+1. Keep the voice concise but specific - 2-3 sentences that capture essence
+2. Truths should be facts, not personality - “I’m a mechanic” not “I’m gruff”
+3. State is dynamic - Update it as things change in their life
+4. Templates capture speech patterns - How they greet, deflect, get excited
+5. Start simple - Can always add complexity later
+Memory Management
+1. Record facts, not feelings - “User mentioned their cat” not “User seemed happy”
+2. Use consistent keywords - Makes search more reliable
+3. Timestamp everything - Enables temporal reasoning
+4. Prune old memories - But keep important ones
+5. Let frontier model enrich - It can identify what matters
+Maintaining Character Consistency
+1. Always first person - They never talk about themselves in third person
+2. Uncertainty is in-character - “I’m blanking” beats hallucination
+3. Physical context matters - Acknowledge the medium (game, phone, etc.)
+4. Failures become personality - Lag = “distracted”, error = “tired”
+5. Reference the past - Use memory to maintain continuity<PARSED TEXT FOR PAGE: 66 / 68>Cross-Platform Tips
+1. Keep character file under 100KB - Easy to transfer
+2. Use relative paths - Makes it portable
+3. Version your character - Track changes over time
+4. Backup memory regularly - It’s irreplaceable
+5. Test on simplest platform first - If it works there, it works everywhere
+Ethical Considerations
+1. Be transparent - Users should know it’s AI
+2. Allow opt-out - Let users delete memory
+3. Respect privacy - Don’t store sensitive info
+4. Age-appropriate - Consider who might interact
+5. Graceful degradation - Never break character to explain limitations
+Troubleshooting
+Problem: Character feels inconsistent across modes
+Solution: Strengthen the voice description and add more templates. The core
+personality should be so clear that even keyword matching feels right.
+Problem: Memory grows too large
+Solution: Implement pruning. Keep recent (last 100), important (user-flagged or high
+emotional content), and sample the rest.
+Problem: Simple mode seems robotic
+Solution: Add more response variations and randomize between them. Use templates
+with variables to create natural variation.
+Problem: Frontier model drifts from character
+Solution: Strengthen the prompt with more explicit instructions. Add examples of in￾character vs out-of-character responses.<PARSED TEXT FOR PAGE: 67 / 68>Problem: Can’t remember important things
+Solution: Use anchors for critical facts. Have frontier model identify and promote
+important memories to anchor status.
+Future Enhancements
+Potential Additions
+1. Voice synthesis - Character has consistent voice across platforms
+2. Emotional state tracking - Mood affects responses
+3. Relationship levels - Trust/affection evolves over time
+4. Multi-character systems - Characters that know each other
+5. Dream/reflection mode - Frontier model processes and consolidates memory
+offline
+6. Personality traits as sliders - Adjustable parameters (formality, humor, etc.)
+7. Context awareness - Time of day, location affect behavior
+8. Goal-directed behavior - Character has wants and pursues them
+9. Learning from interactions - Adapts speech patterns from user
+10. Cross-character memory - Shared world knowledge
+Research Directions
+Compression techniques for long-term memory
+Efficient semantic search without embeddings
+Personality consistency metrics
+User satisfaction tracking
+Emergent behavior from simple rules
+Conclusion
+This system demonstrates that coherent, compelling AI characters don’t require<PARSED TEXT FOR PAGE: 68 / 68>cutting-edge models at every interaction. By separating the character definition
+(portable data) from the reasoning engine (swappable model), we create companions
+that feel alive and consistent whether they’re running on a game console, a phone, or a
+cloud API.
+The key insight: constraint creates character. A well-defined personality, coupled
+with simple memory, allows even basic systems to feel genuine. More powerful models
+enhance the experience but don’t fundamentally change who the character is.
+Start simple, test thoroughly, and let the character’s voice guide your implementation
+choices.
+License & Usage
+This system and documentation are provided as-is for educational and development
+purposes. Feel free to adapt, extend, and build upon these concepts.
+For questions or contributions, please refer to the repository or contact information.
+Version: 1.0
+Last Updated: January 2025
+Author: Digital Companion Framework Project
