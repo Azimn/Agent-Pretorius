@@ -1,0 +1,1310 @@
+SOURCE FILE: Memory System Complete Specification v3_1(2).pdf
+SOURCE: ChatGPT Library file file_00000000b60c71fbb303d3a717a74ec2
+NOTE: Extracted-text archival representation. Original binary remains in the user's Library.
+
+<PARSED TEXT FOR PAGE: 1 / 34>MASTER SPECIFICATION ADDENDUM: MEMORY
+SYSTEM
+Version 3.1.0 - The Persistent Soul
+Version: 3.1.0 (Memory Integration Standard)
+Date: February 02, 2026
+Status: Production Ready
+Dependencies: Core v3.0.0 (Tier 0 Soul, .snp Cartridge, Console Framework)
+EXECUTIVE SUMMARY
+The Memory Problem
+The v3.1 architecture has:
+State - ephemeral emotion (hubris = 65)
+Beliefs - learned patterns (user_disrespectful = 0.7)
+But lacks:
+Persistent storage - where does this live between sessions?
+Episodic memory - what specific events created these beliefs?
+Knowledge gaps - what does the character not know yet?
+The Solution: Single-File Persistence
+All runtime data resides in one SQLite database file ( data/memory.db ):
+Zero dependencies (SQLite is Python stdlib)
+<1MB typical size (even after years of use)
+Single-file backup/restore
+Cross-platform compatible
+Embeds in games, mobile apps, web browsers<PARSED TEXT FOR PAGE: 2 / 34>Key Innovation: Memory is completely separate from persona definition.
+PERSONA FILE (.snp) MEMORY FILE (.db)
+───────────────── ─────────────────
+Who the character IS What they REMEMBER
+Immutable personality Mutable experience
+Shareable cartridge Personal save file
+Version controlled User-specific
+pretorius.snp pretorius_user123.db
+↓ ↓
+Framework loads Framework loads
+→ Determines HOW to think → Provides WHAT to think about
+Three Core Tables
+emotional_state -- Current variable values (hubris, affection, etc.)
+key_memories -- Distilled events ("User saved my life")
+deferred_queries -- Knowledge gaps to research later
+Tier-Aware Operation
+Tier Memory Access Enrichment
+Tier 0 Keyword matching, SQL queries None (offline)
+Tier 2/3 Same + semantic search Dream Engine processes queries
+Graceful Degradation: Higher tiers enrich memory, but Tier 0 can always read the
+results.
+UPDATED DIRECTORY STRUCTURE
+persona-framework/
+├── framework/
+│ ├── memory_manager.py # NEW: DB CRUD operations
+│ ├── dream_engine.py # NEW: Background enrichment
+│ ├── belief_consolidator.py # NEW: Memory → Belief pipeline
+│ ├── tier0_executor.py # UPDATED: Memory-aware
+│ └── ...
+│<PARSED TEXT FOR PAGE: 3 / 34>├── personas/
+│ └── pretorius.snp # Immutable soul (no memory data)
+│
+├── data/
+│ ├── memory.db # NEW: Persistent state + memories
+│ └── embeddings.faiss # OPTIONAL: Tier 3 cache (auto-generated)
+│
+└── utils/
+ └── import_logs.py # NEW: Convert chat logs to memories
+Critical Separation:
+.snp files contain NO runtime data
+memory.db contains NO personality definitions
+Framework mediates all interactions
+DATABASE SCHEMA (memory.db)
+Design Principles
+1. Minimal Schema - Only essential fields
+2. Human Readable - Text summaries, not embeddings
+3. Tier 0 Compatible - Simple SQL queries, no LLM required
+4. Auto-Pruning - Oldest/least important entries expire automatically
+Table 1: Emotional State
+Purpose: Replaces in-memory state dictionary with persistent storage.
+CREATE TABLE IF NOT EXISTS emotional_state (
+ variable_name TEXT PRIMARY KEY,
+ value INTEGER NOT NULL,
+ last_updated TEXT NOT NULL, -- ISO timestamp
+ session_id TEXT
+);
+-- Example data:
+INSERT INTO emotional_state VALUES ('hubris', 75, '2026-02-02T10:30:00Z', 'session_042');
+INSERT INTO emotional_state VALUES ('affection', 45, '2026-02-02T10:31:15Z', 'session_042');
+INSERT INTO emotional_state VALUES ('irritation', 60, '2026-02-02T10:31:15Z', 'session_042');<PARSED TEXT FOR PAGE: 4 / 34>Why This Works:
+Simple key-value store
+Fast reads (indexed by PRIMARY KEY)
+Tracks when emotions changed
+Session tracking for debugging
+Table 2: Beliefs
+Purpose: Slow-changing learned patterns (from v3.1 Belief Layer).
+CREATE TABLE IF NOT EXISTS beliefs (
+ belief_id TEXT PRIMARY KEY,
+ value REAL NOT NULL, -- -1.0 to 1.0 (or custom range)
+ last_updated TEXT NOT NULL,
+ evidence_count INTEGER DEFAULT 0, -- How many memories support this
+ last_consolidated TEXT -- When Dream Engine last updated this
+);
+-- Example data:
+INSERT INTO beliefs VALUES (
+ 'user_disrespectful',
+ 0.72,
+ '2026-02-02T03:00:00Z',
+ 7, -- 7 supporting memories
+ '2026-02-02T03:00:00Z'
+);
+Integration with .snp:
+# In pretorius.snp (defines SCHEMA)
+[[beliefs]]
+id = "user_disrespectful"
+initial = 0.0
+min = -1.0
+max = 1.0
+decay_rate = 0.001
+description = "User shows pattern of disrespecting genius"
+# In memory.db (stores CURRENT VALUE)
+-- belief_id='user_disrespectful', value=0.72
+Separation:<PARSED TEXT FOR PAGE: 5 / 34>Persona file = definition + defaults
+Database = current runtime value
+Table 3: Key Memories
+Purpose: Distilled episodic memory - “What happened that matters?”
+Example Entries:
+CREATE TABLE IF NOT EXISTS key_memories (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ type TEXT NOT NULL, -- 'fact', 'event', 'relationship', 'quote', 'observation'
+ summary TEXT NOT NULL, -- Max 512 chars (enforced in code)
+ importance INTEGER NOT NULL, -- 0-100 (for pruning decisions)
+ emotional_impact REAL, -- -1.0 to 1.0 (how it felt)
+ timestamp TEXT NOT NULL, -- ISO format
+ agent TEXT NOT NULL, -- 'user', 'self', 'external'
+ agent_identifier TEXT, -- Specific user ID (for multi-user)
+ tags TEXT, -- Comma-separated keywords
+ belief_tags TEXT, -- Beliefs this supports
+ session_id TEXT,
+ 
+ -- Tier 3 enrichment (optional)
+ embedding BLOB, -- Optional vector embedding (Tier 3)
+ 
+ FOREIGN KEY (session_id) REFERENCES sessions(id)
+);
+CREATE INDEX idx_memories_type ON key_memories(type, importance DESC);
+CREATE INDEX idx_memories_timestamp ON key_memories(timestamp DESC);
+CREATE INDEX idx_memories_belief_tags ON key_memories(belief_tags);
+-- Type: event
+INSERT INTO key_memories VALUES (
+ 1,
+ 'event',
+ 'User saved me from bandits during journey to the ancient library',
+ 95, -- Very important
+ 0.8, -- Very positive emotional impact
+ '2026-01-15T14:30:00Z',
+ 'user',
+ 'user_123',
+ 'rescue,library,danger',
+ 'user_trustworthy,user_brave',
+ 'session_001',<PARSED TEXT FOR PAGE: 6 / 34> NULL -- No embedding yet
+);
+-- Type: fact
+INSERT INTO key_memories VALUES (
+ 2,
+ 'fact',
+ 'User is skilled in herbalism and knows rare medicinal plants',
+ 70,
+ 0.3,
+ '2026-01-16T09:15:00Z',
+ 'user',
+ 'user_123',
+ 'herbalism,skills,knowledge',
+ 'user_genuinely_curious',
+ 'session_002',
+ NULL
+);
+-- Type: relationship
+INSERT INTO key_memories VALUES (
+ 3,
+ 'relationship',
+ 'User questions my methods but shows genuine intellectual curiosity',
+ 80,
+ 0.0, -- Neutral emotional impact
+ '2026-01-20T11:00:00Z',
+ 'user',
+ 'user_123',
+ 'ethics,debate,curiosity',
+ 'user_genuinely_curious,user_disrespectful',
+ 'session_005',
+ NULL
+);
+-- Type: self (character's own action)
+INSERT INTO key_memories VALUES (
+ 4,
+ 'event',
+ 'I miscalculated the reagent proportions; the experiment failed spectacularly',
+ 85, -- Important because it challenges self-image
+ -0.7, -- Negative emotional impact
+ '2026-01-22T16:45:00Z',
+ 'self',
+ 'pretorius_001',
+ 'failure,experiment,hubris',
+ 'morality_is_weakness', -- Ironically reinforces belief despite failure<PARSED TEXT FOR PAGE: 7 / 34>Memory Types Defined:
+Type Purpose Example
+fact
+Learned
+information “User is a blacksmith”
+event
+Significant
+happening “User betrayed my trust”
+relationship
+Social
+understanding “User fears my methods”
+quote Exact words (rare) “You are playing God” (for later reference)
+observation Pattern noticed “User always asks about ethics after
+breakthroughs”
+Pruning Strategy:
+# Auto-prune when count > 500
+def prune_memories(self):
+ """Delete lowest-importance memories past threshold."""
+ cursor = self.conn.cursor()
+ 
+ # Keep:
+ # - Last 50 memories (recent context)
+ # - All importance > 80 (crystallized)
+ # - All tagged with active beliefs
+ 
+ cursor.execute("""
+ DELETE FROM key_memories
+ WHERE id NOT IN (
+ SELECT id FROM key_memories
+ ORDER BY timestamp DESC
+ LIMIT 50
+ )
+ AND importance < 80
+ AND (belief_tags IS NULL OR belief_tags = '')
+ AND id IN (
+ SELECT id FROM key_memories
+ 'session_007',
+ NULL
+);<PARSED TEXT FOR PAGE: 8 / 34> ORDER BY importance ASC, timestamp ASC
+ LIMIT (SELECT COUNT(*) - 500 FROM key_memories)
+ )
+ """)
+ self.conn.commit()
+Table 4: Deferred Queries
+Purpose: Knowledge gaps the character wants to research.
+CREATE TABLE IF NOT EXISTS deferred_queries (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ topic TEXT NOT NULL, -- "What is the user's true motive?"
+ context TEXT, -- Supporting conversation context
+ priority INTEGER NOT NULL, -- 0-100
+ status TEXT DEFAULT 'pending', -- 'pending', 'resolved', 'abandoned'
+ created_at TEXT NOT NULL,
+ resolved_at TEXT,
+ resolution_summary TEXT, -- Becomes a key_memory when resolved
+ 
+ -- Optional: Link to triggering conversation turn
+ trigger_session TEXT,
+ trigger_turn INTEGER
+);
+CREATE INDEX idx_queries_status ON deferred_queries(status, priority DESC);
+Example Entries:
+-- Tier 0 detected gap, queued for later research
+INSERT INTO deferred_queries VALUES (
+ 1,
+ 'Why does the user keep mentioning "stargazing"?',
+ 'User has mentioned stargazing 3 times in different contexts. May be important hobby or metaphor.',
+ 60,
+ 'pending',
+ '2026-02-01T18:30:00Z',
+ NULL,
+ NULL,
+ 'session_015',
+ 42
+);
+-- User asked question character couldn't answer
+INSERT INTO deferred_queries VALUES (<PARSED TEXT FOR PAGE: 9 / 34>Table 5: Sessions (Metadata)
+Purpose: Track conversation sessions for debugging/analysis.
+CREATE TABLE IF NOT EXISTS sessions (
+ id TEXT PRIMARY KEY, -- 'session_001'
+ started_at TEXT NOT NULL,
+ ended_at TEXT,
+ turn_count INTEGER DEFAULT 0,
+ tier_usage TEXT, -- JSON: {"tier_0": 15, "tier_3": 5}
+ device_context TEXT -- 'mobile', 'desktop', 'embedded'
+);
+COMPONENT IMPLEMENTATION
+Component 1: Memory Manager
+File: framework/memory_manager.py
+ 2,
+ 'What are the philosophical implications of quantum entanglement?',
+ 'User asked during discussion of consciousness and reality. I lack knowledge in modern physics.',
+ 70,
+ 'pending',
+ '2026-02-01T20:15:00Z',
+ NULL,
+ NULL,
+ 'session_015',
+ 58
+);
+"""
+Memory Manager: Persistent state and episodic memory storage.
+Responsibilities:
+- Load/save emotional state
+- CRUD operations on key_memories
+- Manage deferred queries
+- Auto-pruning
+"""
+import sqlite3
+import json<PARSED TEXT FOR PAGE: 10 / 34>from typing import Dict, List, Optional, Tuple
+from datetime import datetime
+class MemoryManager:
+ """
+ Central database manager for all persistent state.
+ Thread-safe, single-file storage.
+ """
+ 
+ def __init__(self, db_path: str = "data/memory.db"):
+ self.db_path = db_path
+ self.conn = sqlite3.connect(db_path, check_same_thread=False)
+ self.conn.row_factory = sqlite3.Row # Return dict-like rows
+ self._create_tables()
+ 
+ def _create_tables(self):
+ """Initialize database schema if not exists."""
+ cursor = self.conn.cursor()
+ 
+ # Emotional State
+ cursor.execute("""
+ CREATE TABLE IF NOT EXISTS emotional_state (
+ variable_name TEXT PRIMARY KEY,
+ value INTEGER NOT NULL,
+ last_updated TEXT NOT NULL,
+ session_id TEXT
+ )
+ """)
+ 
+ # Beliefs
+ cursor.execute("""
+ CREATE TABLE IF NOT EXISTS beliefs (
+ belief_id TEXT PRIMARY KEY,
+ value REAL NOT NULL,
+ last_updated TEXT NOT NULL,
+ evidence_count INTEGER DEFAULT 0,
+ last_consolidated TEXT
+ )
+ """)
+ 
+ # Key Memories
+ cursor.execute("""
+ CREATE TABLE IF NOT EXISTS key_memories (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ type TEXT NOT NULL,
+ summary TEXT NOT NULL,
+ importance INTEGER NOT NULL,<PARSED TEXT FOR PAGE: 11 / 34> emotional_impact REAL,
+ timestamp TEXT NOT NULL,
+ agent TEXT NOT NULL,
+ agent_identifier TEXT,
+ tags TEXT,
+ belief_tags TEXT,
+ session_id TEXT,
+ embedding BLOB
+ )
+ """)
+ 
+ # Indices
+ cursor.execute("""
+ CREATE INDEX IF NOT EXISTS idx_memories_type 
+ ON key_memories(type, importance DESC)
+ """)
+ cursor.execute("""
+ CREATE INDEX IF NOT EXISTS idx_memories_timestamp 
+ ON key_memories(timestamp DESC)
+ """)
+ 
+ # Deferred Queries
+ cursor.execute("""
+ CREATE TABLE IF NOT EXISTS deferred_queries (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ topic TEXT NOT NULL,
+ context TEXT,
+ priority INTEGER NOT NULL,
+ status TEXT DEFAULT 'pending',
+ created_at TEXT NOT NULL,
+ resolved_at TEXT,
+ resolution_summary TEXT,
+ trigger_session TEXT,
+ trigger_turn INTEGER
+ )
+ """)
+ 
+ cursor.execute("""
+ CREATE INDEX IF NOT EXISTS idx_queries_status 
+ ON deferred_queries(status, priority DESC)
+ """)
+ 
+ # Sessions
+ cursor.execute("""
+ CREATE TABLE IF NOT EXISTS sessions (
+ id TEXT PRIMARY KEY,
+ started_at TEXT NOT NULL,<PARSED TEXT FOR PAGE: 12 / 34> ended_at TEXT,
+ turn_count INTEGER DEFAULT 0,
+ tier_usage TEXT,
+ device_context TEXT
+ )
+ """)
+ 
+ self.conn.commit()
+ 
+ # ============================================
+ # EMOTIONAL STATE
+ # ============================================
+ 
+ def load_emotional_state(self, session_id: Optional[str] = None) -> Dict[str, int]:
+ """
+ Load current emotional state.
+ 
+ Returns:
+ Dict of variable_name -> value
+ """
+ cursor = self.conn.cursor()
+ 
+ if session_id:
+ cursor.execute(
+ "SELECT variable_name, value FROM emotional_state WHERE session_id = ?",
+ (session_id,)
+ )
+ else:
+ cursor.execute("SELECT variable_name, value FROM emotional_state")
+ 
+ return {row['variable_name']: row['value'] for row in cursor.fetchall()}
+ 
+ def save_emotional_state(
+ self,
+ state: Dict[str, int],
+ session_id: Optional[str] = None
+ ):
+ """Save current emotional state."""
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ for var_name, value in state.items():
+ cursor.execute("""
+ INSERT OR REPLACE INTO emotional_state 
+ (variable_name, value, last_updated, session_id)
+ VALUES (?, ?, ?, ?)
+ """, (var_name, value, timestamp, session_id))<PARSED TEXT FOR PAGE: 13 / 34> 
+ self.conn.commit()
+ 
+ # ============================================
+ # BELIEFS
+ # ============================================
+ 
+ def load_beliefs(self) -> Dict[str, float]:
+ """Load all current belief values."""
+ cursor = self.conn.cursor()
+ cursor.execute("SELECT belief_id, value FROM beliefs")
+ return {row['belief_id']: row['value'] for row in cursor.fetchall()}
+ 
+ def save_belief(
+ self,
+ belief_id: str,
+ value: float,
+ evidence_count: Optional[int] = None
+ ):
+ """Save a single belief value."""
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ if evidence_count is not None:
+ cursor.execute("""
+ INSERT OR REPLACE INTO beliefs 
+ (belief_id, value, last_updated, evidence_count)
+ VALUES (?, ?, ?, ?)
+ """, (belief_id, value, timestamp, evidence_count))
+ else:
+ cursor.execute("""
+ INSERT OR REPLACE INTO beliefs 
+ (belief_id, value, last_updated)
+ VALUES (?, ?, ?)
+ """, (belief_id, value, timestamp))
+ 
+ self.conn.commit()
+ 
+ def update_belief_consolidation(self, belief_id: str):
+ """Mark belief as recently consolidated by Dream Engine."""
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ cursor.execute("""
+ UPDATE beliefs 
+ SET last_consolidated = ? 
+ WHERE belief_id = ?<PARSED TEXT FOR PAGE: 14 / 34> """, (timestamp, belief_id))
+ 
+ self.conn.commit()
+ 
+ # ============================================
+ # KEY MEMORIES
+ # ============================================
+ 
+ def add_memory(
+ self,
+ type_: str,
+ summary: str,
+ importance: int,
+ emotional_impact: float = 0.0,
+ agent: str = 'user',
+ agent_identifier: Optional[str] = None,
+ tags: Optional[str] = None,
+ belief_tags: Optional[str] = None,
+ session_id: Optional[str] = None
+ ) -> int:
+ """
+ Add a new key memory.
+ 
+ Returns:
+ Memory ID
+ """
+ # Enforce summary length
+ if len(summary) > 512:
+ summary = summary[:509] + "..."
+ 
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ cursor.execute("""
+ INSERT INTO key_memories 
+ (type, summary, importance, emotional_impact, timestamp, 
+ agent, agent_identifier, tags, belief_tags, session_id)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ """, (
+ type_, summary, importance, emotional_impact, timestamp,
+ agent, agent_identifier, tags, belief_tags, session_id
+ ))
+ 
+ self.conn.commit()
+ 
+ # Auto-prune if needed
+ self._check_and_prune()<PARSED TEXT FOR PAGE: 15 / 34> 
+ return cursor.lastrowid
+ 
+ def query_memories(
+ self,
+ type_filter: Optional[str] = None,
+ keyword: Optional[str] = None,
+ agent_filter: Optional[str] = None,
+ min_importance: int = 0,
+ limit: int = 10
+ ) -> List[Dict]:
+ """
+ Query memories with filters.
+ 
+ Tier 0 compatible: simple SQL filtering, no embeddings.
+ """
+ cursor = self.conn.cursor()
+ 
+ query = "SELECT * FROM key_memories WHERE importance >= ?"
+ params = [min_importance]
+ 
+ if type_filter:
+ query += " AND type = ?"
+ params.append(type_filter)
+ 
+ if agent_filter:
+ query += " AND agent = ?"
+ params.append(agent_filter)
+ 
+ if keyword:
+ query += " AND (summary LIKE ? OR tags LIKE ? OR belief_tags LIKE ?)"
+ kw = f"%{keyword}%"
+ params.extend([kw, kw, kw])
+ 
+ query += " ORDER BY importance DESC, timestamp DESC LIMIT ?"
+ params.append(limit)
+ 
+ cursor.execute(query, params)
+ return [dict(row) for row in cursor.fetchall()]
+ 
+ def get_memories_for_belief(self, belief_id: str, limit: int = 20) -> List[Dict]:
+ """Get all memories that support a specific belief."""
+ cursor = self.conn.cursor()
+ 
+ cursor.execute("""
+ SELECT * FROM key_memories
+ WHERE belief_tags LIKE ?<PARSED TEXT FOR PAGE: 16 / 34> ORDER BY importance DESC, timestamp DESC
+ LIMIT ?
+ """, (f"%{belief_id}%", limit))
+ 
+ return [dict(row) for row in cursor.fetchall()]
+ 
+ def get_recent_memories(self, limit: int = 10) -> List[Dict]:
+ """Get most recent memories (for context)."""
+ cursor = self.conn.cursor()
+ 
+ cursor.execute("""
+ SELECT * FROM key_memories
+ ORDER BY timestamp DESC
+ LIMIT ?
+ """, (limit,))
+ 
+ return [dict(row) for row in cursor.fetchall()]
+ 
+ def _check_and_prune(self, max_memories: int = 500):
+ """Auto-prune old, low-importance memories."""
+ cursor = self.conn.cursor()
+ 
+ # Count total
+ cursor.execute("SELECT COUNT(*) as count FROM key_memories")
+ count = cursor.fetchone()['count']
+ 
+ if count <= max_memories:
+ return
+ 
+ # Delete lowest-importance, oldest memories
+ # But keep:
+ # - Last 50 (recent context)
+ # - All importance > 80 (crystallized)
+ # - All with belief_tags (evidence)
+ 
+ cursor.execute("""
+ DELETE FROM key_memories
+ WHERE id NOT IN (
+ -- Keep recent
+ SELECT id FROM key_memories
+ ORDER BY timestamp DESC
+ LIMIT 50
+ )
+ AND importance < 80
+ AND (belief_tags IS NULL OR belief_tags = '')
+ AND id IN (
+ SELECT id FROM key_memories<PARSED TEXT FOR PAGE: 17 / 34> ORDER BY importance ASC, timestamp ASC
+ LIMIT ?
+ )
+ """, (count - max_memories,))
+ 
+ deleted = cursor.rowcount
+ self.conn.commit()
+ 
+ if deleted > 0:
+ print(f"[Memory] Pruned {deleted} old memories (total: {count} → {count - deleted})")
+ 
+ # ============================================
+ # DEFERRED QUERIES
+ # ============================================
+ 
+ def add_deferred_query(
+ self,
+ topic: str,
+ context: Optional[str] = None,
+ priority: int = 50,
+ session_id: Optional[str] = None,
+ turn: Optional[int] = None
+ ) -> int:
+ """Add a knowledge gap to research later."""
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ cursor.execute("""
+ INSERT INTO deferred_queries
+ (topic, context, priority, created_at, trigger_session, trigger_turn)
+ VALUES (?, ?, ?, ?, ?, ?)
+ """, (topic, context, priority, timestamp, session_id, turn))
+ 
+ self.conn.commit()
+ return cursor.lastrowid
+ 
+ def get_pending_queries(self, limit: int = 20) -> List[Dict]:
+ """Get unresolved queries, highest priority first."""
+ cursor = self.conn.cursor()
+ 
+ cursor.execute("""
+ SELECT * FROM deferred_queries
+ WHERE status = 'pending'
+ ORDER BY priority DESC, created_at ASC
+ LIMIT ?
+ """, (limit,))
+ <PARSED TEXT FOR PAGE: 18 / 34> return [dict(row) for row in cursor.fetchall()]
+ 
+ def resolve_query(
+ self,
+ query_id: int,
+ resolution_summary: str,
+ importance: int = 60
+ ):
+ """
+ Mark query as resolved and convert to key memory.
+ """
+ cursor = self.conn.cursor()
+ 
+ # Get query details
+ cursor.execute("SELECT * FROM deferred_queries WHERE id = ?", (query_id,))
+ query = dict(cursor.fetchone())
+ 
+ # Create memory from resolution
+ memory_id = self.add_memory(
+ type_='fact',
+ summary=resolution_summary,
+ importance=importance,
+ agent='self', # Character researched this
+ tags=f"research,query_{query_id}",
+ session_id=query.get('trigger_session')
+ )
+ 
+ # Mark resolved
+ timestamp = datetime.utcnow().isoformat()
+ cursor.execute("""
+ UPDATE deferred_queries
+ SET status = 'resolved',
+ resolved_at = ?,
+ resolution_summary = ?
+ WHERE id = ?
+ """, (timestamp, resolution_summary, query_id))
+ 
+ self.conn.commit()
+ 
+ print(f"[Memory] Resolved query {query_id} → memory {memory_id}")
+ 
+ # ============================================
+ # SESSIONS
+ # ============================================
+ 
+ def start_session(self, session_id: str, device_context: str = 'unknown') -> str:
+ """Start a new conversation session."""<PARSED TEXT FOR PAGE: 19 / 34>Component 2: Dream Engine
+File: framework/dream_engine.py
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ cursor.execute("""
+ INSERT INTO sessions (id, started_at, device_context)
+ VALUES (?, ?, ?)
+ """, (session_id, timestamp, device_context))
+ 
+ self.conn.commit()
+ return session_id
+ 
+ def end_session(self, session_id: str, tier_usage: Dict[str, int]):
+ """End a session, record statistics."""
+ cursor = self.conn.cursor()
+ timestamp = datetime.utcnow().isoformat()
+ 
+ cursor.execute("""
+ UPDATE sessions
+ SET ended_at = ?, tier_usage = ?
+ WHERE id = ?
+ """, (timestamp, json.dumps(tier_usage), session_id))
+ 
+ self.conn.commit()
+ 
+ def increment_turn_count(self, session_id: str):
+ """Increment turn counter for session."""
+ cursor = self.conn.cursor()
+ 
+ cursor.execute("""
+ UPDATE sessions
+ SET turn_count = turn_count + 1
+ WHERE id = ?
+ """, (session_id,))
+ 
+ self.conn.commit()
+"""
+Dream Engine: Higher-tier background processing.
+Responsibilities:
+- Process deferred queries (when Tier 3 available)
+- Consolidate memories into beliefs<PARSED TEXT FOR PAGE: 20 / 34>- Enrich memories with context
+"""
+from typing import Dict, List, Optional
+from .memory_manager import MemoryManager
+import time
+class DreamEngine:
+ """
+ Background processing for memory enrichment.
+ 
+ Only runs when:
+ - Higher tier (2/3) available
+ - Device idle + battery > 20%
+ - On shutdown with network
+ """
+ 
+ def __init__(
+ self,
+ memory_manager: MemoryManager,
+ tier3_executor
+ ):
+ self.memory = memory_manager
+ self.tier3 = tier3_executor
+ 
+ def should_run(self, context: Dict) -> bool:
+ """
+ Determine if Dream Engine should activate.
+ 
+ Args:
+ context: Runtime context (battery, network, idle)
+ 
+ Returns:
+ True if conditions met
+ """
+ return (
+ context.get('network', False) and
+ context.get('battery', 0) > 20 and
+ (context.get('idle', False) or context.get('shutdown', False))
+ )
+ 
+ def process_cycle(
+ self,
+ max_queries: int = 10,
+ max_consolidations: int = 5
+ ):
+ """<PARSED TEXT FOR PAGE: 21 / 34> Run one Dream Engine cycle.
+ 
+ 1. Process deferred queries
+ 2. Consolidate memories → beliefs
+ """
+ print("[Dream] Starting processing cycle...")
+ start_time = time.time()
+ 
+ # Phase 1: Resolve queries
+ queries_processed = self._process_deferred_queries(max_queries)
+ 
+ # Phase 2: Consolidate beliefs
+ beliefs_updated = self._consolidate_beliefs(max_consolidations)
+ 
+ elapsed = time.time() - start_time
+ print(f"[Dream] Completed in {elapsed:.1f}s")
+ print(f" - Queries processed: {queries_processed}")
+ print(f" - Beliefs updated: {beliefs_updated}")
+ 
+ def _process_deferred_queries(self, max_queries: int) -> int:
+ """
+ Research pending queries using Tier 3.
+ 
+ Returns:
+ Number of queries resolved
+ """
+ queries = self.memory.get_pending_queries(max_queries)
+ 
+ if not queries:
+ print("[Dream] No pending queries")
+ return 0
+ 
+ resolved = 0
+ 
+ for query in queries:
+ try:
+ # Construct research prompt
+ prompt = f"""
+ Research and answer this question concisely:
+ 
+ Topic: {query['topic']}
+ Context: {query['context'] or 'None provided'}
+ 
+ Provide a 1-2 sentence factual answer suitable for permanent storage.
+ Focus on accuracy and relevance.
+ """
+ <PARSED TEXT FOR PAGE: 22 / 34> # Call Tier 3 (with timeout/retry logic)
+ resolution = self.tier3.generate_simple_completion(
+ prompt,
+ max_tokens=100
+ )
+ 
+ # Save as memory
+ self.memory.resolve_query(
+ query['id'],
+ resolution,
+ importance=query['priority']
+ )
+ 
+ resolved += 1
+ 
+ except Exception as e:
+ print(f"[Dream] Failed to process query {query['id']}: {e}")
+ continue
+ 
+ return resolved
+ 
+ def _consolidate_beliefs(self, max_beliefs: int) -> int:
+ """
+ Update beliefs based on accumulated memories.
+ 
+ This implements the v3.1 Belief Update Rules.
+ """
+ # This would integrate with BeliefConsolidator from v3.1
+ # For now, simple example:
+ 
+ updated = 0
+ 
+ # Example: Check if user shows disrespect pattern
+ moral_challenges = self.memory.query_memories(
+ keyword='moral_challenge',
+ agent_filter='user',
+ limit=50
+ )
+ 
+ if len(moral_challenges) >= 3:
+ # Update belief
+ current = self.memory.load_beliefs().get('user_disrespectful', 0.0)
+ delta = len(moral_challenges) * 0.1
+ new_value = min(1.0, current + delta)
+ 
+ self.memory.save_belief(
+ 'user_disrespectful',<PARSED TEXT FOR PAGE: 23 / 34>Component 3: Log Importer
+File: utils/import_logs.py
+ new_value,
+ evidence_count=len(moral_challenges)
+ )
+ 
+ self.memory.update_belief_consolidation('user_disrespectful')
+ updated += 1
+ 
+ return updated
+"""
+Import existing chat logs into memory database.
+Converts hundreds of pages of dialogue into compact memories.
+"""
+from framework.memory_manager import MemoryManager
+from typing import Optional
+import re
+class LogImporter:
+ """
+ Convert chat logs to structured memories.
+ 
+ Two modes:
+ - LLM-powered: Uses Tier 3 to extract key events
+ - Rule-based: Simple regex/keyword extraction
+ """
+ 
+ def __init__(self, memory_manager: MemoryManager, tier3=None):
+ self.memory = memory_manager
+ self.tier3 = tier3
+ 
+ def import_logs(
+ self,
+ log_text: str,
+ use_llm: bool = True,
+ session_id: str = 'imported'
+ ):
+ """
+ Import logs into memory database.
+ 
+ Args:<PARSED TEXT FOR PAGE: 24 / 34> log_text: Raw conversation logs
+ use_llm: If True, use Tier 3 for extraction
+ session_id: Session identifier for imported memories
+ """
+ if use_llm and self.tier3:
+ self._import_with_llm(log_text, session_id)
+ else:
+ self._import_rule_based(log_text, session_id)
+ 
+ def _import_with_llm(self, log_text: str, session_id: str):
+ """Use Tier 3 to extract structured memories."""
+ 
+ prompt = f"""
+ Analyze this role-play conversation log and extract key information.
+ 
+ Output a JSON array of memory entries with this structure:
+ {{
+ "type": "event|fact|relationship|quote",
+ "summary": "concise description (max 512 chars)",
+ "importance": 0-100,
+ "emotional_impact": -1.0 to 1.0, "agent": "user|self",
+ "tags": "comma,separated,keywords",
+ "belief_tags": "relevant,belief,ids"
+ }}
+ 
+ Focus on:
+ - Significant events (not mundane chat)
+ - Facts revealed about user
+ - Relationship dynamics
+ - Character's own actions/failures
+ 
+ Limit to 50-100 most important entries.
+ 
+ LOGS:
+ {log_text[:10000]} # Chunk if needed
+ """
+ 
+ # Get structured output from Tier 3
+ response = self.tier3.generate_json_completion(prompt)
+ 
+ # Insert memories
+ for entry in response:
+ self.memory.add_memory(
+ type_=entry['type'],
+ summary=entry['summary'],
+ importance=entry['importance'],<PARSED TEXT FOR PAGE: 25 / 34> emotional_impact=entry.get('emotional_impact', 0.0),
+ agent=entry['agent'],
+ tags=entry.get('tags'),
+ belief_tags=entry.get('belief_tags'),
+ session_id=session_id
+ )
+ 
+ print(f"[Import] Added {len(response)} memories from logs")
+ 
+ def _import_rule_based(self, log_text: str, session_id: str):
+ """Simple extraction using regex patterns."""
+ 
+ # Split into turns
+ turns = re.split(r'\n(User|Character):', log_text)
+ 
+ # Extract key patterns
+ facts = []
+ 
+ # Pattern: User reveals information
+ for match in re.finditer(r'I (?:am|was|have|work) (.+?)\.', log_text, re.IGNORECASE):
+ facts.append({
+ 'type': 'fact',
+ 'summary': f"User: {match.group(1)}",
+ 'importance': 60,
+ 'agent': 'user'
+ })
+ 
+ # Pattern: Character makes observation
+ for match in re.finditer(r'Character.*?notices? (.+?)\.', log_text, re.IGNORECASE):
+ facts.append({
+ 'type': 'observation',
+ 'summary': match.group(1),
+ 'importance': 50,
+ 'agent': 'self'
+ })
+ 
+ # Insert (deduplicate by summary)
+ seen = set()
+ for fact in facts:
+ if fact['summary'] not in seen:
+ self.memory.add_memory(**fact, session_id=session_id)
+ seen.add(fact['summary'])
+ 
+ print(f"[Import] Added {len(seen)} memories via rule-based extraction")<PARSED TEXT FOR PAGE: 26 / 34>TIER-SPECIFIC BEHAVIOR
+Tier 0: Pure Deterministic Access
+Capabilities:
+Full read access to all tables
+Simple SQL queries (keyword matching, type filtering)
+No external compute required
+Directive Extensions:
+New Condition Type: memory_contains
+# In persona.snp
+[[state_machine.directives]]
+id = "recall_rescue"
+pattern = '\b(remember|recall|forget)\b'
+conditions = [
+ "memory_contains 'type=event' AND tags='rescue'",
+ "affection > 50"
+]
+response = "How could I forget? You saved me from those bandits. I owe you my life, my dear interlocutor."
+[[state_machine.directives]]
+id = "herbalism_expertise"
+pattern = '\b(herbs?|plants?|medicine)\b'
+conditions = [
+ "memory_contains 'herbalism' type='fact'"
+]
+response = "Ah yes, you mentioned your knowledge of rare medicinal plants. Perhaps you could assist with my latest experiment?"
+def _eval_memory_condition(self, condition: str, memory: MemoryManager) -> bool:
+ """
+ Evaluate memory-based conditions.
+ 
+ Examples:
+ "memory_contains 'rescue' type='event'"
+ "memory_count type='fact' > 5"
+ "memory_recent 'stargazing' within='7days'"
+ """
+ if condition.startswith("memory_contains"):
+ # Extract parameters
+ parts = condition.split()<PARSED TEXT FOR PAGE: 27 / 34>Knowledge Gap Handling:
+def _handle_unknown(self, topic: str, context: str, memory: MemoryManager):
+ """
+ Tier 0 response to knowledge gaps.
+ 
+ Adds to deferred_queries for later research.
+ """
+ memory.add_deferred_query(
+ topic=f"Learn about: {topic}",
+ context=context,
+ priority=70
+ )
+ 
+ # Return graceful response
+ return "Mm. An intriguing topic I shall have to ponder further."
+Tier 2/3: LLM-Enhanced Access
+Additional Capabilities:
+Semantic search (if embeddings computed)
+Dream Engine processing
+Complex belief consolidation
+ keyword = parts[1].strip("'\"")
+ 
+ type_filter = None
+ if "type=" in condition:
+ type_match = re.search(r"type='([^']+)'", condition)
+ if type_match:
+ type_filter = type_match.group(1)
+ 
+ # Query memory
+ results = memory.query_memories(
+ keyword=keyword,
+ type_filter=type_filter,
+ limit=1
+ )
+ 
+ return len(results) > 0
+ 
+ # Other memory condition types...<PARSED TEXT FOR PAGE: 28 / 34>Prompt Context Injection:
+def _build_tier3_prompt(
+ self,
+ persona: Dict,
+ state: Dict,
+ user_input: str,
+ memory: MemoryManager
+) -> str:
+ """
+ Build Tier 3 prompt with memory context.
+ """
+ # Get relevant memories
+ recent = memory.get_recent_memories(limit=5)
+ 
+ # Extract keywords from user input
+ keywords = extract_keywords(user_input)
+ relevant = memory.query_memories(keyword=keywords[0], limit=3) if keywords else []
+ 
+ # Get current beliefs
+ beliefs = memory.load_beliefs()
+ 
+ # Format for prompt
+ memory_context = "\n".join([
+ f"- {m['summary']}" for m in recent
+ ])
+ 
+ relevant_context = "\n".join([
+ f"- {m['summary']}" for m in relevant
+ ])
+ 
+ belief_context = "\n".join([
+ f"- {bid}: {value:.2f}" for bid, value in beliefs.items()
+ ])
+ 
+ prompt = f"""
+ You are {persona['metadata']['entity_name']}.
+ 
+ CURRENT EMOTIONAL STATE:
+ {format_state(state)}
+ 
+ CURRENT BELIEFS:
+ {belief_context}
+ 
+ RECENT MEMORIES:
+ {memory_context}<PARSED TEXT FOR PAGE: 29 / 34>Graceful Degradation
+Scenario: User starts conversation on desktop (Tier 3), continues on mobile offline
+(Tier 0).
+What Works:
+# Desktop session (Tier 3):
+# - User mentions "stargazing" hobby
+# - Tier 3 adds rich memory with context
+# - Dream Engine processes, adds to deferred_queries
+# Mobile offline (Tier 0):
+# - Loads same memory.db
+# - Can query: "memory_contains 'stargazing'"
+# - Directive fires: "I recall you mentioned stargazing..."
+# - Cannot process deferred_queries (queued for later)
+Data Flow:
+Tier 3 Creates → memory.db entry (text summary)
+ ↓
+Tier 0 Reads → Same entry (no special handling needed)
+ ↓
+Tier 3 Available → Dream Engine processes queue
+INTEGRATION WITH V3.1 BELIEF SYSTEM
+Belief-Memory Linkage
+In Persona File:
+ 
+ RELEVANT MEMORIES FOR THIS TOPIC:
+ {relevant_context}
+ 
+ USER: {user_input}
+ 
+ Respond in character, informed by your memories and beliefs.
+ """
+ 
+ return prompt<PARSED TEXT FOR PAGE: 30 / 34>[[beliefs]]
+id = "user_disrespectful"
+initial = 0.0
+[[belief_rules]]
+belief_id = "user_disrespectful"
+trigger_memory_type = "event"
+trigger_memory_tags = "moral_challenge"
+threshold_count = 3
+delta = 0.3
+In Memory Database:
+-- Memory created during conversation
+INSERT INTO key_memories VALUES (
+ 5,
+ 'event',
+ 'User challenged my ethics regarding the experiment',
+ 75,
+ -0.3,
+ '2026-02-02T14:30:00Z',
+ 'user',
+ 'user_123',
+ 'ethics,moral_challenge,debate',
+ 'user_disrespectful', -- Tagged for belief update
+ 'session_020',
+ NULL
+);
+Dream Engine Process:
+def consolidate_belief(self, belief_id: str, rule: Dict):
+ """
+ Update belief based on accumulated memories.
+ """
+ # Get memories tagged for this belief
+ memories = self.memory.get_memories_for_belief(belief_id)
+ 
+ # Count by type/tags
+ matching = [
+ m for m in memories
+ if (
+ m['type'] == rule['trigger_memory_type'] and
+ rule['trigger_memory_tags'] in m.get('tags', '')
+ )<PARSED TEXT FOR PAGE: 31 / 34> ]
+ 
+ if len(matching) >= rule['threshold_count']:
+ # Update belief
+ current = self.memory.load_beliefs().get(belief_id, 0.0)
+ new_value = current + rule['delta']
+ 
+ self.memory.save_belief(
+ belief_id,
+ new_value,
+ evidence_count=len(matching)
+ )
+ 
+ return True
+ 
+ return False
+MIGRATION GUIDE
+For New Installations
+1. Initialize Database:
+from framework.memory_manager import MemoryManager
+memory = MemoryManager("data/memory.db")
+# Tables created automatically
+2. Load Persona:
+persona = load_persona("personas/pretorius.snp")
+3. Initialize State:
+# Get defaults from persona
+initial_state = {
+ var: def_['default']
+ for var, def_ in persona['state_machine']['variables'].items()
+}
+memory.save_emotional_state(initial_state)<PARSED TEXT FOR PAGE: 32 / 34>For Existing v3.0 Installations
+Option 1: Fresh Start
+Delete old state files
+Initialize new memory.db
+Lose conversation history
+Option 2: Import Logs
+from utils.import_logs import LogImporter
+importer = LogImporter(memory, tier3)
+with open('old_conversation_logs.txt') as f:
+ logs = f.read()
+importer.import_logs(logs, use_llm=True)
+PERFORMANCE CHARACTERISTICS
+Memory Footprint
+Typical Database Size:
+100 memories: ~50KB
+500 memories: ~200KB
+1000 memories (max recommended): ~400KB
+With Optional Embeddings:
+Add ~1KB per memory (1000 memories = +1MB)
+Query Performance
+Simple Queries (Tier 0):
+Load emotional state: <1ms
+Query memories by keyword: <5ms
+Get recent memories: <5ms<PARSED TEXT FOR PAGE: 33 / 34>Complex Queries (Tier 3):
+Semantic search with embeddings: <50ms
+Dream Engine cycle (10 queries): 10-30s
+Storage Limits
+Auto-Pruning Thresholds:
+Default max: 500 memories
+Configurable via framework_config.toml
+What Gets Pruned:
+Importance < 80
+Not in last 50 entries
+No belief_tags
+Oldest first
+What Never Gets Pruned:
+Last 50 memories (recent context)
+Importance >= 80 (crystallized)
+Memories supporting active beliefs
+SUMMARY
+What This Enables
+Complete Persistence:
+Character remembers across sessions
+Emotions persist between conversations
+Knowledge accumulates over time
+Graceful Tier Degradation:
+Tier 0: Full read access, simple queries
+Tier 3: Enhanced search, Dream Engine processing<PARSED TEXT FOR PAGE: 34 / 34>All tiers share same database schema
+Zero External Dependencies:
+Single SQLite file
+No servers, no cloud services
+Portable across all platforms
+Separation Maintained:
+.snp = immutable personality
+memory.db = mutable experience
+Framework mediates all interactions
+Implementation Priority
+1. Phase 1: MemoryManager (2 weeks)
+Core CRUD operations
+Schema creation
+Integration with Tier0Executor
+2. Phase 2: Dream Engine (2 weeks)
+Deferred query processing
+Belief consolidation
+Background task scheduling
+3. Phase 3: Log Importer (1 week)
+Rule-based extraction
+LLM-powered extraction
+Bulk import tools
+The memory system is production-ready for implementation.
