@@ -10,6 +10,7 @@ distribution_owned:
   - profile.yaml
   - config.yaml
   - skills/
+  - plugins/
   - cron/
   - runtime/
   - scripts/

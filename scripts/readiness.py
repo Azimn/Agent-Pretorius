@@ -13,6 +13,8 @@ REQUIRED = [
     "config.yaml",
     "runtime/pretorius_runtime.py",
     "skills/pretorius-life/SKILL.md",
+    "plugins/pretorius-state/plugin.yaml",
+    "plugins/pretorius-state/__init__.py",
     "skills/pretorius-research/SKILL.md",
     "skills/pretorius-trace-evaluator/SKILL.md",
     "resources/seed_agenda.json",
