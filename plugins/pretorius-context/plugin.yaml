@@ -1,0 +1,6 @@
+name: pretorius-context
+version: "0.1.0"
+description: Inject provenance-aware Agent Pretorius persistent state and research context before each LLM turn, and log metadata-only tool outcomes.
+hooks:
+  - pre_llm_call
+  - post_tool_call
