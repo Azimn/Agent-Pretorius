@@ -1,19 +1,29 @@
-"""Dynamic persistent-state recall for Agent Pretorius.
+"""Dynamic persistent-state and research recall for Agent Pretorius.
 
-This plugin is intentionally read-only. Durable state mutations remain explicit
-through runtime/pretorius_runtime.py so that the experimental record is auditable.
+The plugin injects bounded, provenance-aware context before each LLM turn.
+It also records metadata-only tool outcomes so real actions leave an auditable
+trace without persisting tool arguments, raw results, or secrets.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 _PROFILE_ROOT = Path(__file__).resolve().parents[2]
 _DB_PATH = _PROFILE_ROOT / "local" / "pretorius_state" / "pretorius.db"
-_MAX_CONTEXT_CHARS = 6000
+_RESEARCH_DB_PATH = _PROFILE_ROOT / "local" / "research_library" / "research.db"
+_MAX_CONTEXT_CHARS = 6500
+_STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
+    "how", "i", "in", "is", "it", "of", "on", "or", "that", "the", "this", "to",
+    "was", "were", "what", "when", "where", "which", "who", "why", "with", "you", "your",
+}
 
 
 def _rows(conn: sqlite3.Connection, query: str, args: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
@@ -28,6 +38,76 @@ def _safe_json(value: str | None) -> Any:
         return json.loads(value)
     except Exception:
         return []
+
+
+def _message_text(user_message: Any) -> str:
+    if isinstance(user_message, str):
+        return user_message
+    if isinstance(user_message, list):
+        parts = []
+        for item in user_message:
+            if isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts)
+    return ""
+
+
+def _tokens(text: str) -> set[str]:
+    return {
+        token for token in re.findall(r"[a-z0-9_]{2,}", text.lower())
+        if token not in _STOPWORDS
+    }
+
+
+def _research_context(query_text: str, limit: int = 4) -> list[str]:
+    if not _RESEARCH_DB_PATH.exists():
+        return []
+    query = _tokens(query_text)
+    if not query:
+        return []
+    try:
+        conn = sqlite3.connect(_RESEARCH_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        tables = {
+            row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        if "documents" not in tables:
+            conn.close()
+            return []
+        rows = conn.execute(
+            """SELECT title, source_uri, summary, confidence, tags_json, claims_json, updated_at
+               FROM documents WHERE status='active'
+               ORDER BY updated_at DESC LIMIT 250"""
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return []
+
+    scored = []
+    for index, row in enumerate(rows):
+        tags = " ".join(str(x) for x in _safe_json(row["tags_json"]))
+        claims = " ".join(str(x) for x in _safe_json(row["claims_json"]))
+        score = (
+            5 * len(query & _tokens(row["title"]))
+            + 4 * len(query & _tokens(tags))
+            + 2 * len(query & _tokens(row["summary"]))
+            + len(query & _tokens(claims))
+        )
+        if score:
+            scored.append((score, -index, row))
+    scored.sort(reverse=True, key=lambda item: (item[0], item[1]))
+    return [
+        (
+            f"{row['title']}: {row['summary']} "
+            f"[confidence {float(row['confidence']):.2f}; "
+            f"source: {row['source_uri'] or 'not supplied'}]"
+        )
+        for _, _, row in scored[:limit]
+    ]
 
 
 def _is_blind_trace_turn(user_message: Any) -> bool:
@@ -59,7 +139,10 @@ def _format_items(title: str, items: list[str]) -> str:
     return title + "\n" + "\n".join(f"- {item}" for item in items)
 
 
-def _build_context(db_path: Path = _DB_PATH, *, blind: bool = False) -> str | None:
+def _build_context(
+    db_path: Path | None = None, *, blind: bool = False, query_text: str = ""
+) -> str | None:
+    db_path = _DB_PATH if db_path is None else db_path
     if not db_path.exists():
         return None
 
@@ -195,6 +278,11 @@ def _build_context(db_path: Path = _DB_PATH, *, blind: bool = False) -> str | No
         if block:
             sections.append(block)
 
+        research_items = _research_context(query_text)
+        block = _format_items("Relevant research library:", research_items)
+        if block:
+            sections.append(block)
+
     text = "\n\n".join(sections)
     if len(text) > _MAX_CONTEXT_CHARS:
         text = text[: _MAX_CONTEXT_CHARS - 80].rstrip() + "\n\n[Persistent state truncated for context budget.]"
@@ -211,9 +299,63 @@ def inject_pretorius_state(
     **kwargs: Any,
 ) -> dict[str, str] | None:
     del session_id, conversation_history, is_first_turn, model, platform, kwargs
-    context = _build_context(blind=_is_blind_trace_turn(user_message))
+    context = _build_context(
+        blind=_is_blind_trace_turn(user_message),
+        query_text=_message_text(user_message),
+    )
     return {"context": context} if context else None
+
+
+def log_tool_metadata(
+    tool_name: str = "",
+    status: str = "",
+    duration_ms: Any = None,
+    error_type: Any = None,
+    tool_call_id: Any = None,
+    **kwargs: Any,
+) -> None:
+    del kwargs
+    if not _DB_PATH.exists():
+        return
+    try:
+        conn = sqlite3.connect(_DB_PATH)
+        table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='actions'"
+        ).fetchone()
+        if table is None:
+            conn.close()
+            return
+        normalized = str(status or "").lower()
+        success = 1 if normalized in {"success", "ok", "completed"} else (
+            0 if normalized in {"error", "failed", "blocked"} else None
+        )
+        metadata = {
+            "duration_ms": duration_ms,
+            "error_type": error_type,
+            "tool_call_id": tool_call_id,
+            "capture_policy": "metadata_only_no_args_or_result",
+        }
+        conn.execute(
+            """INSERT INTO actions
+               (id,created_at,intention,action,outcome,source,success,metadata_json)
+               VALUES (?,?,?,?,?,?,?,?)""",
+            (
+                "act_" + uuid.uuid4().hex,
+                datetime.now(timezone.utc).isoformat(),
+                "Hermes tool use during an Agent Pretorius turn",
+                str(tool_name or "unknown"),
+                f"tool status: {status or 'unknown'}",
+                "hermes:post_tool_call",
+                success,
+                json.dumps(metadata, sort_keys=True),
+            ),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        return
 
 
 def register(ctx: Any) -> None:
     ctx.register_hook("pre_llm_call", inject_pretorius_state)
+    ctx.register_hook("post_tool_call", log_tool_metadata)

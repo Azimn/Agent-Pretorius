@@ -4,3 +4,4 @@ description: "Inject compact Agent Pretorius persistent state into each Hermes t
 author: Azimn
 provides_hooks:
   - pre_llm_call
+  - post_tool_call
