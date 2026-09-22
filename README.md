@@ -22,7 +22,7 @@ cd Agent-Pretorius
 python scripts/install.py --start-gateway
 ```
 
-The default installer creates an isolated `agent-pretorius` profile while borrowing the already-working Hermes model/provider/tool configuration. It removes inherited conversational memory before installing Pretorius identity files and skills.
+The default installer creates an isolated `agent-pretorius` profile by cloning the already-working Hermes model/provider/tool configuration, preserving that configuration across the distribution install, replacing the inherited SOUL with Pretorius, and deleting the cloned `MEMORY.md` and `USER.md` before first use. Existing distribution-managed Pretorius profiles are updated in place. Existing unrelated profiles are never overwritten unless `--replace-existing` is explicitly supplied.
 
 Then verify:
 

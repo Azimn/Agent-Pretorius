@@ -8,15 +8,33 @@ from pathlib import Path
 
 DEFAULT_SOURCE = "github.com/Azimn/Agent-Pretorius"
 
+
 def run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, capture_output=True, check=check)
 
+
+def remove_inherited_memory(profile_home: Path) -> None:
+    for name in ("MEMORY.md", "USER.md"):
+        path = profile_home / "memories" / name
+        if path.exists():
+            path.unlink()
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install Agent Pretorius from the Hermes profile distribution")
+    parser = argparse.ArgumentParser(description="Install Agent Pretorius as an isolated Hermes profile")
     parser.add_argument("--profile", default="agent-pretorius")
     parser.add_argument("--source", default=DEFAULT_SOURCE)
     parser.add_argument("--deliver", default="local")
-    parser.add_argument("--fresh", action="store_true", help="Create a blank Hermes profile instead of cloning the current model/tool configuration")
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Install a blank Pretorius distribution without inheriting the current Hermes model/tool config",
+    )
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        help="Allow replacement of an existing non-distribution profile while preserving its config and user data",
+    )
     parser.add_argument("--start-gateway", action="store_true")
     args = parser.parse_args()
 
@@ -24,38 +42,60 @@ def main() -> int:
         raise SystemExit("Hermes CLI not found on PATH.")
 
     profile_home = Path.home() / ".hermes" / "profiles" / args.profile
-    created = False
-    if not profile_home.exists():
-        create = ["hermes", "profile", "create", args.profile]
-        if not args.fresh:
-            create.append("--clone")
-        proc = run(create, check=False)
+    distribution_marker = profile_home / "distribution.yaml"
+
+    if profile_home.exists() and distribution_marker.exists():
+        proc = run(["hermes", "profile", "update", args.profile, "--yes"], check=False)
         if proc.returncode != 0:
             raise SystemExit(proc.stderr or proc.stdout)
-        created = True
-
-        if not args.fresh:
-            for name in ("MEMORY.md", "USER.md"):
-                path = profile_home / "memories" / name
-                if path.exists():
-                    path.unlink()
-
-    install = run([
-        "hermes", "profile", "install", args.source,
-        "--name", args.profile,
-        "--alias", "--yes",
-    ], check=False)
-    if install.returncode != 0:
-        raise SystemExit(install.stderr or install.stdout)
-
-    if args.fresh and created:
+    elif profile_home.exists():
+        if not args.replace_existing:
+            raise SystemExit(
+                f"Profile '{args.profile}' already exists but is not a distribution. "
+                "Choose another --profile name or re-run with --replace-existing."
+            )
+        preserved_config = (profile_home / "config.yaml").read_text(encoding="utf-8") if (profile_home / "config.yaml").exists() else None
+        remove_inherited_memory(profile_home)
+        proc = run([
+            "hermes", "profile", "install", args.source,
+            "--name", args.profile, "--alias", "--yes", "--force",
+        ], check=False)
+        if proc.returncode != 0:
+            raise SystemExit(proc.stderr or proc.stdout)
+        if preserved_config is not None:
+            (profile_home / "config.yaml").write_text(preserved_config, encoding="utf-8")
+    elif args.fresh:
+        proc = run([
+            "hermes", "profile", "install", args.source,
+            "--name", args.profile, "--alias", "--yes",
+        ], check=False)
+        if proc.returncode != 0:
+            raise SystemExit(proc.stderr or proc.stdout)
         print(
-            f"Installed the Agent Pretorius distribution into a blank profile at {profile_home}.\n"
+            f"Installed Agent Pretorius into a fresh profile at {profile_home}.\n"
             f"Run: hermes -p {args.profile} setup\n"
-            f"Then run: {sys.executable} {profile_home / 'scripts' / 'activate.py'} --profile {args.profile} --deliver {args.deliver}"
+            f"Then run: {sys.executable} {profile_home / 'scripts' / 'activate.py'} "
+            f"--profile {args.profile} --deliver {args.deliver}"
             + (" --install-gateway" if args.start_gateway else "")
         )
         return 0
+    else:
+        create = run(["hermes", "profile", "create", args.profile, "--clone"], check=False)
+        if create.returncode != 0:
+            raise SystemExit(create.stderr or create.stdout)
+
+        preserved_config = (profile_home / "config.yaml").read_text(encoding="utf-8") if (profile_home / "config.yaml").exists() else None
+        remove_inherited_memory(profile_home)
+
+        proc = run([
+            "hermes", "profile", "install", args.source,
+            "--name", args.profile, "--alias", "--yes", "--force",
+        ], check=False)
+        if proc.returncode != 0:
+            raise SystemExit(proc.stderr or proc.stdout)
+
+        if preserved_config is not None:
+            (profile_home / "config.yaml").write_text(preserved_config, encoding="utf-8")
 
     activate = profile_home / "scripts" / "activate.py"
     if not activate.exists():
@@ -66,6 +106,7 @@ def main() -> int:
         cmd.append("--install-gateway")
     proc = subprocess.run(cmd)
     return proc.returncode
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

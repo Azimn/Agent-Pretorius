@@ -8,7 +8,7 @@ From a clone of this repository, the complete path is:
 python scripts/install.py --start-gateway
 ```
 
-The installer uses the currently active Hermes profile only for model, provider, tool, and static credential configuration. It deletes the cloned `MEMORY.md` and `USER.md` before Agent Pretorius starts, then the distribution replaces the cloned SOUL and project skills. This prevents another assistant's conversational memory from becoming Pretorius biography.
+The installer uses the currently active Hermes profile only for model, provider, tool, and static credential configuration. Hermes distribution force-install normally replaces `config.yaml`, so the installer explicitly preserves the cloned config and restores it immediately after the Pretorius distribution is applied. It deletes the cloned `MEMORY.md` and `USER.md` before Agent Pretorius starts, while the distribution replaces the cloned SOUL and adds the Pretorius skills. This prevents another assistant's conversational memory from becoming Pretorius biography without losing the already-working model setup.
 
 For a completely blank Hermes profile instead, use:
 
