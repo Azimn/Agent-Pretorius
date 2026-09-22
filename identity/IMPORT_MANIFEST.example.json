@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "reconstruction_id": "agent-pretorius",
+  "sources": [
+    {
+      "source_id": "example-canon",
+      "kind": "canon",
+      "location": "replace-with-source-location",
+      "content_hash": "replace-with-sha256",
+      "license_or_usage_note": "record provenance before import",
+      "derived_artifacts": []
+    },
+    {
+      "source_id": "example-lora",
+      "kind": "lora",
+      "location": "replace-with-model-or-local-location",
+      "content_hash": "replace-with-sha256",
+      "base_model": "replace-with-base-model",
+      "training_note": "record dataset and training provenance",
+      "derived_artifacts": []
+    }
+  ]
+}

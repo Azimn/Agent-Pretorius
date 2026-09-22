@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-pretorius"
+version = "0.1.0"
+description = "Persistent runtime and research tools for Agent Pretorius"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+pretorius = "agent_pretorius.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
