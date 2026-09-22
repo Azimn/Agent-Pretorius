@@ -10,7 +10,7 @@ Agent Pretorius is therefore both a collaborator and a reference reconstruction.
 
 The durable identity is not one prompt. `SOUL.md` defines stable stance and voice. `resources/` preserves provenance-rich identity and training evidence. `runtime/pretorius_runtime.py` provides a local SQLite life record containing autobiographical memories, structured relationships, action outcomes, self-model claims, research notes, agenda items, trace judgments, and longitudinal continuity runs. `runtime/research_library.py` maintains a separate provenance-aware research library with human-readable records. Hermes supplies model inference, tools, skills, profiles, gateway operation, and scheduled wake cycles.
 
-The conceptual loop is `observe -> retrieve -> appraise -> intend -> act -> observe outcome -> reflect -> consolidate`. The enabled `pretorius-state` plugin performs automatic pre-LLM retrieval from persistent character state and relevant research, so ordinary turns do not depend on the model remembering to query its database. Scheduled cycles complete one bounded unit of work rather than pretending to be continuously conscious between executions.
+The conceptual loop is `observe -> retrieve -> appraise -> intend -> act -> observe outcome -> reflect -> consolidate`. The enabled `pretorius-state` plugin performs automatic contextual pre-LLM retrieval from persistent character state and relevant research. Older records can re-enter working context when the current situation matches them, while near-duplicate and unrelated recent records are suppressed. The original recency projection remains available as a fail-open fallback. See `docs/CONTEXTUAL_RECALL.md`. Scheduled cycles complete one bounded unit of work rather than pretending to be continuously conscious between executions.
 
 ## Install into an existing Hermes setup
 
@@ -53,6 +53,10 @@ Hermes can also create new skills. This profile redirects agent-created skills t
 
 The repository contains the currently located Pretorius LoRA dataset lineage, identity artifacts, legacy persona evidence, architecture extracts, a snapshot of the neural experiment repository, and selected cognition-relevant code from the earlier Pretorius application. `resources/MANIFEST.json` inventories the archive and `resources/MISSING_OR_USER_UPLOADS.md` records high-value source material that has not yet been located.
 
+## Future relevance-provider option
+
+The repository also preserves the rationale for an optional future KEV or other local decision-provider layer in `docs/FUTURE_KEV_RELEVANCE.md`. It is deliberately not active in v0.3. Contextual recall is implemented deterministically first; a learned relevance provider should be added only if real use demonstrates a recurring retrieval or autonomous-wake problem that justifies the extra component.
+
 ## Optional Honcho layer
 
 Hermes can optionally give the Pretorius profile its own Honcho AI peer with self-observation. This can provide a second inferred representation of how Pretorius behaves across conversations. The local SQLite record remains the authoritative experimental state. See `docs/HONCHO_OPTIONAL.md`.
@@ -67,6 +71,7 @@ The runtime uses only the Python standard library and targets Python 3.11 or new
 
 ```bash
 python scripts/readiness.py
+python scripts/preview_recall.py "Experiment 017 contradicts our earlier topology interpretation"
 python -m unittest discover -s tests -v
 ```
 
