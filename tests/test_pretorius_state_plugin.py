@@ -90,9 +90,10 @@ class PretoriusStatePluginTests(unittest.TestCase):
             blind=False,
             query_text="How should we test activation steering for affect?",
         )
-        self.assertIn("Relevant research library:", context)
+        self.assertIn("[Agent Pretorius contextual persistent state]", context)
+        self.assertIn("RESEARCH_KNOWLEDGE", context)
         self.assertIn("Activation steering affect paper", context)
-        self.assertIn("Recent durable memories:", context)
+        self.assertIn("AUTOBIOGRAPHICAL_MEMORY", context)
 
     def test_blind_mode_suppresses_research_and_autobiography(self):
         context = plugin._build_context(
@@ -101,6 +102,8 @@ class PretoriusStatePluginTests(unittest.TestCase):
         )
         self.assertNotIn("Relevant research library:", context)
         self.assertNotIn("Recent durable memories:", context)
+        self.assertNotIn("RESEARCH_KNOWLEDGE", context)
+        self.assertNotIn("AUTOBIOGRAPHICAL_MEMORY", context)
         self.assertIn("BLIND EVALUATION MODE", context)
 
     def test_plugin_registers_recall_and_action_observer(self):
