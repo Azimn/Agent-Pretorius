@@ -140,8 +140,9 @@ def _format_items(title: str, items: list[str]) -> str:
 
 
 def _build_context(
-    db_path: Path = _DB_PATH, *, blind: bool = False, query_text: str = ""
+    db_path: Path | None = None, *, blind: bool = False, query_text: str = ""
 ) -> str | None:
+    db_path = _DB_PATH if db_path is None else db_path
     if not db_path.exists():
         return None
 
