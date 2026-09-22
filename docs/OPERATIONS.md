@@ -25,7 +25,7 @@ The activation script initializes `local/pretorius_state/pretorius.db`, seeds th
 python scripts/activate.py --profile agent-pretorius --deliver local
 ```
 
-`Pretorius Pulse` wakes every two hours. `Pretorius Continuity Probe` records a character snapshot every six hours. `Pretorius Night Reflection` runs at 1:30 AM system-local time. `Pretorius Lab Brief` runs at 7:00 AM system-local time. The first three default to local delivery. The lab brief uses the delivery target passed to activation.
+`Pretorius Pulse` wakes every hour. `Pretorius Continuity Probe` records a character snapshot every six hours. `Pretorius Night Reflection` runs at 1:30 AM system-local time. `Pretorius Lab Brief` runs at 7:00 AM system-local time. The first three default to local delivery. The lab brief uses the delivery target passed to activation.
 
 To receive the daily lab brief through a configured Pretorius Telegram gateway, run activation with `--deliver telegram` after the profile's Telegram channel is configured. A cloned Hermes profile intentionally does not inherit messaging bot credentials because two profiles sharing one bot token can conflict.
 
@@ -42,6 +42,8 @@ The default Hermes gateway multiplexer can service named-profile cron stores. If
 hermes gateway install
 hermes gateway restart
 ```
+
+Run post-install health checks with `python scripts/verify_install.py --profile agent-pretorius`. This checks Hermes diagnostics, the scheduler heartbeat, the installed routines, and the Pretorius persistent runtime without changing state beyond normal runtime initialization.
 
 Run repository readiness checks at any time with:
 

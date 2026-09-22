@@ -37,9 +37,9 @@ A completely fresh profile is also supported with `python scripts/install.py --f
 
 ## Autonomous operation
 
-`scripts/activate.py` creates the bounded wake schedule. The default pulse runs every two hours, a continuity probe runs every six hours, nightly reflection runs at 1:30 AM, and a daily lab brief runs at 7:00 AM. Hermes continuity mode carries the previous substantive scheduled output into the next run, while the local runtime retains longer-term structured state.
+`scripts/activate.py` creates the bounded wake schedule. The default pulse runs every hour, a continuity probe runs every six hours, nightly reflection runs at 1:30 AM, and a daily lab brief runs at 7:00 AM. Hermes continuity mode carries the previous substantive scheduled output into the next run, while the local runtime retains longer-term structured state.
 
-The daily brief defaults to local delivery. After configuring a dedicated messaging channel for this profile, rerun activation with a delivery target such as `telegram`.
+The daily brief defaults to local delivery. After configuring a dedicated messaging channel for this profile, rerun activation with a delivery target such as `telegram`. During active collaboration, Hermes session heartbeats, self-paced `/loop` or `/proactive`, and `/goal` completion contracts provide higher-frequency or task-specific agency without replacing the unattended cron layer. See `docs/LIFE_MODES.md`.
 
 Autonomous work is intentionally constrained. Timer-fired cycles may analyze, experiment inside local user-owned space, and update Pretorius state, but do not silently publish, push, contact third parties, or alter Experimental Pretorius.
 

@@ -10,7 +10,7 @@ from pathlib import Path
 ROUTINES = [
     {
         "name": "Pretorius Pulse",
-        "schedule": "every 2h",
+        "schedule": "every 1h",
         "skill": "pretorius-life",
         "continuity": True,
         "delivery": "local",
@@ -82,6 +82,11 @@ def ensure_config(profile: str, root: Path) -> list[str]:
         "cron.allow_agent_scheduling": "false",
         "cron.mirror_delivery": "true",
         "cron.script_timeout_seconds": "1800",
+        "goals.max_turns": "12",
+        "loops.max_ticks": "48",
+        "loops.self_paced_floor_seconds": "60",
+        "loops.self_paced_ceiling_seconds": "900",
+        "agent.clarify_timeout": "300",
     }
     for key, value in values.items():
         proc = run(hermes_prefix(profile) + ["config", "set", key, value], check=False)
